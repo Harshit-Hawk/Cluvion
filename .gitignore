@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Next.js
+.next/
+out/
+
+# Backup
+_backup_src/
+
 # Environment variables - NEVER commit these (contains Supabase secrets)
 .env
 .env.local
