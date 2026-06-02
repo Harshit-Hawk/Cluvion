@@ -1,3 +1,3 @@
 'use client';
-import StudentLeaderboard from '../../../../pages/StudentLeaderboard';
+import StudentLeaderboard from '../../../../views/StudentLeaderboard';
 export default function StudentLeaderboardPage() { return <StudentLeaderboard />; }

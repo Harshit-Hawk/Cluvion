@@ -1,3 +1,3 @@
 'use client';
-import AdminProfile from '../../../../pages/AdminProfile';
+import AdminProfile from '../../../../views/AdminProfile';
 export default function AdminProfilePage() { return <AdminProfile />; }

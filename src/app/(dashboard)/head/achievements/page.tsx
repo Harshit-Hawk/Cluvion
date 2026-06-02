@@ -1,3 +1,3 @@
 'use client';
-import ClubHeadAchievements from '../../../../pages/ClubHeadAchievements';
+import ClubHeadAchievements from '../../../../views/ClubHeadAchievements';
 export default function HeadAchievementsPage() { return <ClubHeadAchievements />; }

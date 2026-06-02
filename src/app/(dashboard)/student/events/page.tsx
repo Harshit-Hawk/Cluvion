@@ -1,3 +1,3 @@
 'use client';
-import StudentEvents from '../../../../pages/StudentEvents';
+import StudentEvents from '../../../../views/StudentEvents';
 export default function StudentEventsPage() { return <StudentEvents />; }

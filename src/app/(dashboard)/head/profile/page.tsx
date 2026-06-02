@@ -1,3 +1,3 @@
 'use client';
-import ClubHeadProfile from '../../../../pages/ClubHeadProfile';
+import ClubHeadProfile from '../../../../views/ClubHeadProfile';
 export default function HeadProfilePage() { return <ClubHeadProfile />; }

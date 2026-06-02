@@ -2,6 +2,7 @@
 
 import { AuthProvider } from '../../context/AuthContext';
 import { NotificationProvider } from '../../context/NotificationContext';
+import { RealtimeProvider } from '../../context/RealtimeContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Layout from '../../components/Layout';
 
@@ -9,9 +10,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <AuthProvider>
       <NotificationProvider>
-        <ProtectedRoute>
-          <Layout>{children}</Layout>
-        </ProtectedRoute>
+        <RealtimeProvider>
+          <ProtectedRoute>
+            <Layout>{children}</Layout>
+          </ProtectedRoute>
+        </RealtimeProvider>
       </NotificationProvider>
     </AuthProvider>
   );

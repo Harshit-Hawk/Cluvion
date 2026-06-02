@@ -1,215 +1,292 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Trophy, Award, Activity, Flame, Megaphone, Flag } from 'lucide-react';
 import type { FeedPost, Comment } from '../types';
+import { ActivityLogService } from '../services/gamification/ActivityLogService';
+import { useRealtimeContext } from '../context/RealtimeContext';
 
-const SocialPost = ({ post }: { post: FeedPost }) => {
-   const [liked, setLiked] = useState(false);
-   const [saved, setSaved] = useState(false);
-   const [likesCount, setLikesCount] = useState(Math.floor(Math.random() * 50) + 5);
-   const [showComments, setShowComments] = useState(false);
-   const [comments, setComments] = useState<Comment[]>([]);
-   const [newComment, setNewComment] = useState('');
+export type FeedItemType = 'announcement' | 'gamification';
 
-   const handleLike = () => {
-      setLiked(!liked);
-      setLikesCount(prev => liked ? prev - 1 : prev + 1);
-   };
+export interface DashboardFeedItem {
+  id: string;
+  type: FeedItemType;
+  created_at: string;
+  // Announcement
+  content?: string;
+  clubs?: { name: string };
+  media_url?: string;
+  media_type?: string;
+  // Gamification (mapped from ActivityLogService)
+  actionType?: string;
+  pointsAwarded?: number;
+  metadata?: any;
+  user?: { fullName: string; avatarUrl: string; course?: string };
+}
 
-   // Generate a placeholder gradient based on the club name length to make posts distinct
-   const gradientVariations = [
-      "from-blue-400 to-indigo-500",
-      "from-emerald-400 to-teal-500",
-      "from-orange-400 to-rose-500",
-      "from-purple-400 to-pink-500",
-      "from-cyan-400 to-blue-500"
-   ];
-   const clubNameLength = post.clubs?.name?.length || 0;
-   const gradientClass = gradientVariations[clubNameLength % gradientVariations.length];
-
+const AnnouncementCard = memo(({ post }: { post: DashboardFeedItem }) => {
    return (
       <motion.div
-         initial={{ opacity: 0, y: 20 }}
-         animate={{ opacity: 1, y: 0 }}
-         className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden mb-6"
+         initial={{ opacity: 0, scale: 0.95, y: 20 }}
+         animate={{ opacity: 1, scale: 1, y: 0 }}
+         exit={{ opacity: 0, scale: 0.9 }}
+         layout
+         className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-lg shadow-gray-200/50 dark:shadow-none overflow-hidden relative group"
       >
-         {/* Post Header */}
-         <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center font-bold text-gray-700 dark:text-gray-200 shadow-inner border border-white dark:border-gray-900">
-                  {post.clubs?.name?.charAt(0) || 'C'}
+         {/* Top Gradient Bar */}
+         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+         
+         <div className="p-6">
+            <div className="flex items-center gap-4 mb-4">
+               <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Megaphone size={24} />
                </div>
                <div>
-                  <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm">{post.clubs?.name || 'Campus Club'}</h4>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <h4 className="font-bold text-gray-900 dark:text-gray-100 text-lg">{post.clubs?.name || 'Campus Update'}</h4>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                      {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                   </span>
                </div>
             </div>
-            <button className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors p-2">
-               <MoreHorizontal size={20} />
-            </button>
-         </div>
 
-
-         <div className="px-5 pb-3 pt-1">
-            <p className="text-gray-800 dark:text-gray-200 text-base leading-relaxed whitespace-pre-wrap">
+            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-wrap">
                {post.content}
             </p>
-         </div>
 
-         {post.media_url && (
-            <div className="px-5 pb-4">
-               {post.media_type === 'video' ? (
-                  <video controls className="w-full rounded-2xl bg-gray-100 dark:bg-gray-800 max-h-96 object-contain" src={post.media_url} />
-               ) : (
-                  <img src={post.media_url} alt="Attached media" className="w-full rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 max-h-96 object-cover" />
-               )}
-            </div>
-         )}
-
-         {/* Action Bar */}
-         <div className="px-5 pb-4">
-            <div className="flex items-center gap-4 mb-3">
-               <button onClick={handleLike} className="group flex items-center gap-1.5">
-                  <Heart 
-                     size={22} 
-                     className={`transition-all ${liked ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-700 dark:text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300 hover:scale-110'}`} 
-                  />
-               </button>
-               <button onClick={() => setShowComments(!showComments)} className="text-gray-700 dark:text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-all hover:scale-110 flex items-center gap-1.5">
-                  <MessageCircle size={22} />
-                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-500">
-                     {comments.length}
-                  </span>
-               </button>
-            </div>
-
-            {/* Comments Section */}
-            {showComments && (
-               <div className="mt-4 space-y-3">
-                  {comments.length > 0 ? comments.map(c => (
-                     <div key={c.id} className="text-sm">
-                        <span className="font-bold text-gray-900 dark:text-gray-100 mr-2">{c.user}</span>
-                        <span className="text-gray-800 dark:text-gray-300">{c.text}</span>
-                     </div>
-                  )) : (
-                     <p className="text-sm text-gray-500 dark:text-gray-500 italic">No comments yet. Be the first!</p>
+            {post.media_url && (
+               <div className="rounded-xl overflow-hidden mb-4">
+                  {post.media_type === 'video' ? (
+                     <video controls className="w-full h-48 object-cover bg-gray-100 dark:bg-gray-800" src={post.media_url} />
+                  ) : (
+                     <img src={post.media_url} alt="Update" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-gray-800" />
                   )}
-                  
-                  <form 
-                     onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!newComment.trim()) return;
-                        setComments([...comments, { id: Date.now(), user: 'You', text: newComment }]);
-                        setNewComment('');
-                     }}
-                     className="mt-3 flex items-center gap-2"
-                  >
-                     <input 
-                        type="text" 
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Add a comment..." 
-                        className="flex-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-gray-900 transition-colors"
-                     />
-                     <button type="submit" disabled={!newComment.trim()} className="text-blue-600 font-semibold text-sm disabled:opacity-50 transition-opacity">
-                        Post
-                     </button>
-                  </form>
                </div>
             )}
          </div>
       </motion.div>
    );
-};
+});
+
+const ActivityCard = memo(({ post }: { post: DashboardFeedItem }) => {
+   const action = post.actionType || '';
+   
+   let config = {
+      icon: Activity,
+      title: 'Activity',
+      color: 'from-blue-400 to-cyan-500',
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      textColor: 'text-blue-600 dark:text-blue-400',
+      message: 'participated in an activity.'
+   };
+
+   if (action.includes('badge') || action.includes('achievement')) {
+      config = {
+         icon: Award, title: 'Badge Unlocked', color: 'from-amber-400 to-orange-500', bg: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-600 dark:text-amber-400', message: 'unlocked a new badge!'
+      };
+   } else if (action.includes('streak')) {
+      config = {
+         icon: Flame, title: 'Streak Milestone', color: 'from-rose-400 to-red-500', bg: 'bg-rose-50 dark:bg-rose-900/20', textColor: 'text-rose-600 dark:text-rose-400', message: 'hit a new daily streak!'
+      };
+   } else if (action.includes('leaderboard') || action.includes('rank')) {
+      config = {
+         icon: Trophy, title: 'Leaderboard Update', color: 'from-yellow-300 to-amber-500', bg: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-600 dark:text-yellow-400', message: 'climbed the leaderboard!'
+      };
+   } else if (action.includes('event')) {
+      config = {
+         icon: Activity, title: 'Event Activity', color: 'from-purple-400 to-fuchsia-500', bg: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-600 dark:text-purple-400', message: 'participated in a campus event.'
+      };
+   } else if (action.includes('challenge')) {
+      config = {
+         icon: Flag, title: 'Challenge Update', color: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', textColor: 'text-emerald-600 dark:text-emerald-400', message: 'completed a challenge.'
+      };
+   }
+
+   const Icon = config.icon;
+
+   // Remove heavy backdrop-blur from ActivityCard — use simpler bg
+   return (
+      <motion.div
+         initial={{ opacity: 0, y: 12 }}
+         animate={{ opacity: 1, y: 0 }}
+         exit={{ opacity: 0 }}
+         className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm p-6 relative overflow-hidden group"
+      >
+         <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-3xl opacity-20 bg-gradient-to-br ${config.color} group-hover:opacity-40 transition-opacity duration-500`}></div>
+         
+         <div className="flex justify-between items-start mb-4 relative z-10">
+            <div className={`px-3 py-1 rounded-full text-xs font-bold ${config.bg} ${config.textColor} inline-flex items-center gap-1.5 shadow-sm border border-white/50 dark:border-gray-800`}>
+               <Icon size={14} /> {config.title}
+            </div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+            </span>
+         </div>
+
+         <div className="flex items-center gap-4 relative z-10">
+            <div className="relative">
+               <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 border-2 border-white dark:border-gray-800 shadow-md">
+                  {post.user?.avatarUrl ? (
+                     <img src={post.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                     <div className={`w-full h-full flex items-center justify-center font-bold ${config.textColor} ${config.bg}`}>
+                        {(post.user?.fullName || 'S').charAt(0)}
+                     </div>
+                  )}
+               </div>
+               {post.pointsAwarded && post.pointsAwarded > 0 && (
+                  <div className={`absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-gradient-to-r ${config.color} shadow-sm border-2 border-white dark:border-gray-900`}>
+                     +{post.pointsAwarded}
+                  </div>
+               )}
+            </div>
+            
+            <div className="flex-1">
+               <p className="text-gray-800 dark:text-gray-200 text-sm leading-snug">
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{post.user?.fullName || 'A student'}</span> {config.message}
+               </p>
+            </div>
+         </div>
+      </motion.div>
+   );
+});
 
 const Feed = () => {
-  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [posts, setPosts] = useState<DashboardFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let subscription;
+  const { subscribeToFeedPosts, subscribeToActivityLogs } = useRealtimeContext();
 
-    const fetchPosts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('feed_posts')
-          .select('id, content, created_at, clubs(name), media_url, media_type')
-          .order('created_at', { ascending: false })
-          .limit(20);
+  const fetchPosts = useCallback(async () => {
+    try {
+      const { data: socialData, error: socialError } = await supabase
+        .from('feed_posts')
+        .select('id, content, created_at, clubs(name), media_url, media_type')
+        .order('created_at', { ascending: false })
+        .limit(15);
 
-        if (error) throw error;
-        // In Supabase, joining a single table returns an object or array depending on relation. We assume object here.
-        setPosts((data as unknown as FeedPost[]) || []);
-      } catch (err) {
-        console.error('Error fetching feed:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      if (socialError && socialError.code !== '42P01') console.error(socialError);
 
-    const subscribeToPosts = () => {
-      subscription = supabase
-        .channel('public:feed_posts')
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'feed_posts' 
-        }, async (payload) => {
-          const { data: clubData } = await supabase
-            .from('clubs')
-            .select('name')
-            .eq('id', payload.new.club_id)
-            .single();
+      const gameData = await ActivityLogService.getGlobalFeed(20);
 
-          const newPost: FeedPost = {
-            ...(payload.new as FeedPost),
-            clubs: clubData || { name: 'Unknown Club' }
-          };
+      const merged: DashboardFeedItem[] = [
+         ...(socialData || []).map((p: any) => ({ 
+            ...p, 
+            type: 'announcement' as FeedItemType,
+            clubs: Array.isArray(p.clubs) ? p.clubs[0] : p.clubs
+         })),
+         ...(gameData || []).map((g: any) => ({ 
+            ...g, 
+            type: 'gamification' as FeedItemType,
+            created_at: g.createdAt
+         }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+       .slice(0, 30);
 
-          setPosts(prev => [newPost, ...prev]);
-        })
-        .subscribe();
-    };
-
-    fetchPosts();
-    subscribeToPosts();
-
-    return () => {
-      if (subscription) supabase.removeChannel(subscription);
-    };
+      setPosts(merged);
+    } catch (err) {
+      console.error('Error fetching unified feed:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPosts();
+
+    // Centralized realtime — no duplicate channels
+    const unsubFeed = subscribeToFeedPosts(async (payload) => {
+      const { data: clubData } = await supabase.from('clubs').select('name').eq('id', payload.new.club_id).maybeSingle();
+      const newPost: DashboardFeedItem = { ...(payload.new as any), type: 'announcement', clubs: clubData || { name: 'Campus Update' } };
+      setPosts(prev => [newPost, ...prev].slice(0, 30));
+    });
+
+    const unsubActivity = subscribeToActivityLogs(async (payload) => {
+      const { data: userData } = await supabase.from('users').select('full_name, avatar_url, course').eq('id', payload.new.user_id).maybeSingle();
+      const newEvent: DashboardFeedItem = {
+        id: payload.new.id,
+        type: 'gamification',
+        actionType: payload.new.action_type,
+        pointsAwarded: payload.new.points_awarded,
+        created_at: payload.new.created_at,
+        user: { fullName: userData?.full_name || 'A student', avatarUrl: userData?.avatar_url, course: userData?.course }
+      };
+      setPosts(prev => [newEvent, ...prev].slice(0, 30));
+    });
+
+    return () => { unsubFeed(); unsubActivity(); };
+  }, [fetchPosts, subscribeToFeedPosts, subscribeToActivityLogs]);
 
   if (loading) {
     return (
-       <div className="space-y-6">
-           {[1,2,3].map(i => (
-             <div key={i} className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 animate-pulse">
-                <div className="flex gap-3 items-center mb-4">
-                   <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-                </div>
-                <div className="w-full h-64 bg-gray-100 dark:bg-gray-800 rounded-xl mb-4"></div>
-             </div>
-          ))}
+       <div className="w-full">
+         <div className="mb-8 flex items-center justify-between">
+            <div>
+               <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse mb-2"></div>
+               <div className="h-4 w-64 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse"></div>
+            </div>
+         </div>
+         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
+             {[1,2,3,4,5,6].map(i => (
+               <div key={i} className="bg-white dark:bg-gray-900 rounded-[2rem] h-48 border border-gray-100 dark:border-gray-800 shadow-sm p-6 animate-pulse flex flex-col justify-between">
+                  <div className="flex justify-between items-center">
+                     <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded-full w-1/3"></div>
+                     <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-1/4"></div>
+                  </div>
+                  <div className="flex gap-4 items-center">
+                     <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-800"></div>
+                     <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-2/3"></div>
+                  </div>
+               </div>
+            ))}
+         </div>
        </div>
     );
   }
 
   return (
-    <div className="w-full max-w-xl mx-auto md:max-w-none md:mx-0">
-      <AnimatePresence>
-        {posts.map((post) => (
-           <SocialPost key={post.id} post={post} />
-        ))}
-      </AnimatePresence>
+    <div className="w-full max-w-7xl mx-auto">
+      <div className="mb-8 flex items-center justify-between">
+         <div>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">Campus Activity</h2>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Live updates from around the campus</p>
+         </div>
+         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800/50 shadow-sm">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+            </span>
+            Live Feed
+         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+         <AnimatePresence mode="popLayout">
+            {posts.map((post) => (
+               post.type === 'gamification' ? (
+                  <ActivityCard key={`game-${post.id}`} post={post} />
+               ) : (
+                  <AnnouncementCard key={`announcement-${post.id}`} post={post} />
+               )
+            ))}
+         </AnimatePresence>
+      </div>
+      
       {posts.length === 0 && (
-         <div className="p-12 text-center text-gray-400 border border-dashed rounded-3xl">No posts available.</div>
+         <div className="p-10 text-center bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm mt-8 relative overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 relative z-10">
+              <Activity size={32} />
+            </div>
+            <h3 className="text-xl font-extrabold text-gray-900 dark:text-white relative z-10">Start the Action!</h3>
+            <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto mb-6 relative z-10">You're the first one here. Join a club, attend an event, or complete a challenge to get the feed buzzing.</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center relative z-10">
+              <a href="/student/events" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30">Find Events</a>
+              <a href="/student/clubs" className="px-6 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold rounded-xl transition-all">Explore Clubs</a>
+            </div>
+         </div>
       )}
     </div>
   );

@@ -63,6 +63,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
 
+    // Safety watchdog: if auth events take too long (e.g. lock contention),
+    // force loading=false after 6s so the app doesn't hang on the spinner.
+    const watchdog = setTimeout(() => {
+      if (!mounted.current) return;
+      setLoading(false);
+      setSessionReady(true);
+    }, 6000);
+
     const clearUser = () => {
       clearCache();
       if (!mounted.current) return;
@@ -134,6 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       mounted.current = false;
+      clearTimeout(watchdog);
       subscription?.unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

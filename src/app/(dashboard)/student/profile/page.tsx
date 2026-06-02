@@ -1,3 +1,3 @@
 'use client';
-import StudentProfile from '../../../../pages/StudentProfile';
+import StudentProfile from '../../../../views/StudentProfile';
 export default function StudentProfilePage() { return <StudentProfile />; }

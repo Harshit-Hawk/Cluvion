@@ -43,7 +43,7 @@ export interface AuthCache {
 }
 
 // ─── Notifications ──────────────────────────────────────────
-export type NotificationType = 'event' | 'achievement' | 'points' | 'announcement';
+export type NotificationType = 'event' | 'achievement' | 'points' | 'announcement' | 'challenge' | 'leaderboard';
 
 export interface Notification {
   id: string;
@@ -61,6 +61,8 @@ export interface NotificationContextValue {
   loading: boolean;
   markAsRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAll: () => Promise<void>;
 }
 
 // ─── Feed ───────────────────────────────────────────────────

@@ -12,6 +12,8 @@ const NotificationContext = createContext<NotificationContextValue>({
   loading: false,
   markAsRead: async () => {},
   markAllRead: async () => {},
+  deleteNotification: async () => {},
+  clearAll: async () => {},
 });
 
 export const useNotifications = (): NotificationContextValue => useContext(NotificationContext);
@@ -21,6 +23,8 @@ const TYPE_ICONS: Record<NotificationType, string> = {
   achievement:  '🏆',
   points:       '⭐',
   announcement: '📢',
+  challenge:    '🎯',
+  leaderboard:  '📈',
 };
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
@@ -137,9 +141,37 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  const deleteNotification = useCallback(async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await supabase.from('notifications').delete().eq('id', id).eq('user_id', user!.id);
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+  }, [user]);
+
+  const clearAll = useCallback(async () => {
+    if (!notifications.length) return;
+    setNotifications([]);
+    try {
+      await supabase.from('notifications').delete().eq('user_id', user!.id);
+    } catch (err) {
+      console.error('Failed to clear all notifications:', err);
+      fetchNotifications();
+    }
+  }, [notifications, user, fetchNotifications]);
+
   return (
     <NotificationContext.Provider
-      value={{ notifications, unreadCount, loading, markAsRead, markAllRead }}
+      value={{ 
+        notifications, 
+        unreadCount, 
+        loading, 
+        markAsRead, 
+        markAllRead,
+        deleteNotification,
+        clearAll
+      }}
     >
       {children}
     </NotificationContext.Provider>
