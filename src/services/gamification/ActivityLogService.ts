@@ -38,7 +38,7 @@ export class ActivityLogService {
           action_type,
           points_awarded,
           reference_id,
-          metadata,
+          reference_type,
           created_at
         `)
         .eq('user_id', userId)
@@ -53,7 +53,7 @@ export class ActivityLogService {
         actionType: item.action_type,
         pointsAwarded: item.points_awarded,
         referenceId: item.reference_id,
-        metadata: item.metadata,
+        metadata: { type: item.reference_type },
         createdAt: item.created_at
       }));
     } catch (error) {
@@ -76,7 +76,7 @@ export class ActivityLogService {
           action_type,
           points_awarded,
           reference_id,
-          metadata,
+          reference_type,
           created_at,
           users!inner (
             full_name,
@@ -102,7 +102,7 @@ export class ActivityLogService {
         actionType: item.action_type,
         pointsAwarded: item.points_awarded,
         referenceId: item.reference_id,
-        metadata: item.metadata,
+        metadata: { type: item.reference_type },
         createdAt: item.created_at,
         user: {
           fullName: item.users?.full_name || 'Anonymous Student',

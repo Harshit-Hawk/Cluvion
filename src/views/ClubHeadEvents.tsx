@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { format, isPast } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRScanner from '../components/QRScanner';
+import EventSchedulingWizard from '../components/events/EventSchedulingWizard';
 import { AttendanceService } from '../services/AttendanceService';
 import { 
   Calendar, Plus, Trash2, Clock, MapPin, 
@@ -24,12 +25,15 @@ const ClubHeadEvents = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', description: '', event_date: '', location: '' });
 
   const [scanModalOpen, setScanModalOpen] = useState(false);
   const [scanningEventId, setScanningEventId] = useState(null);
   const [isProcessingScan, setIsProcessingScan] = useState(false);
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [attendees, setAttendees] = useState([]);
+  const [loadingAttendees, setLoadingAttendees] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -64,35 +68,7 @@ const ClubHeadEvents = () => {
     }
   };
 
-  const handleCreateEvent = async (e) => {
-    e.preventDefault();
-    if (!managedClubId) return;
-    setIsSaving(true);
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .insert({
-          club_id: managedClubId,
-          title: newEvent.title,
-          description: newEvent.description,
-          event_date: new Date(newEvent.event_date).toISOString(),
-          location: newEvent.location,
-          status: 'pending' // New events go to moderation
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      setEvents(prev => [data, ...prev]);
-      toast.success('Event submitted for moderation!');
-      setIsModalOpen(false);
-      setNewEvent({ title: '', description: '', event_date: '', location: '' });
-    } catch (err) {
-      toast.error('Error creating event.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -119,6 +95,28 @@ const ClubHeadEvents = () => {
       toast.error('Scan processing failed');
     } finally {
       setTimeout(() => setIsProcessingScan(false), 1500);
+    }
+  };
+
+  const openDetails = async (evt) => {
+    setSelectedEvent(evt);
+    setDetailsModalOpen(true);
+    setLoadingAttendees(true);
+    try {
+      const { data, error } = await supabase
+        .from('event_attendance')
+        .select(`
+          status,
+          users!inner (id, full_name, roll_no, avatar_url)
+        `)
+        .eq('event_id', evt.id);
+      
+      if (error) throw error;
+      setAttendees(data || []);
+    } catch (err) {
+      toast.error('Failed to load attendees');
+    } finally {
+      setLoadingAttendees(false);
     }
   };
 
@@ -166,9 +164,15 @@ const ClubHeadEvents = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 p-8 shadow-sm group hover:shadow-xl transition-all relative overflow-hidden"
+                className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm group hover:shadow-xl transition-all relative overflow-hidden flex flex-col"
               >
-                {/* Header Row */}
+                {evt.image_url && (
+                  <div className="w-full h-48 bg-gray-100 dark:bg-gray-800 overflow-hidden shrink-0">
+                    <img src={evt.image_url} alt={evt.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  </div>
+                )}
+                <div className="p-8 flex-1 flex flex-col">
+                  {/* Header Row */}
                 <div className="flex justify-between items-start mb-6">
                   <div className={`px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${status.class}`}>
                     <status.icon size={12} />
@@ -213,10 +217,14 @@ const ClubHeadEvents = () => {
                         <Maximize2 size={14} /> Scan IDs
                       </button>
                     )}
-                    <button className="px-6 py-3 bg-gray-50 dark:bg-gray-800 text-[10px] font-black uppercase tracking-widest rounded-2xl text-gray-500 hover:bg-gray-100 transition-all">
+                    <button 
+                      onClick={() => openDetails(evt)}
+                      className="px-6 py-3 bg-gray-50 dark:bg-gray-800 text-[10px] font-black uppercase tracking-widest rounded-2xl text-gray-500 hover:bg-gray-100 transition-all"
+                    >
                       Details
                     </button>
                   </div>
+                </div>
                 </div>
               </motion.div>
             );
@@ -224,89 +232,16 @@ const ClubHeadEvents = () => {
         </AnimatePresence>
       </div>
 
-      {/* Create Event Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-gray-900 rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-gray-800"
-            >
-              <div className="px-10 py-8 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                <div>
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">New Activity</h2>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Submit for moderation</p>
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={24} />
-                </button>
-              </div>
-
-              <form onSubmit={handleCreateEvent} className="p-10 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Event Title</label>
-                    <input 
-                      required
-                      placeholder="e.g. Annual Tech Summit"
-                      value={newEvent.title}
-                      onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Date & Time</label>
-                      <input 
-                        required
-                        type="datetime-local"
-                        value={newEvent.event_date}
-                        onChange={(e) => setNewEvent({...newEvent, event_date: e.target.value})}
-                        className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold dark:[color-scheme:dark]"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Location</label>
-                      <input 
-                        placeholder="Room 101"
-                        value={newEvent.location}
-                        onChange={(e) => setNewEvent({...newEvent, location: e.target.value})}
-                        className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
-                    <textarea 
-                      rows="3"
-                      placeholder="Briefly describe the activity..."
-                      value={newEvent.description}
-                      onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
-                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold resize-none"
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  type="submit"
-                  disabled={isSaving}
-                  className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2 uppercase tracking-[0.2em] text-xs"
-                >
-                  {isSaving ? <RefreshCw className="animate-spin" size={18} /> : <Plus size={18} />}
-                  Propose Event
-                </button>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Create Event Wizard */}
+      <EventSchedulingWizard
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        clubId={managedClubId}
+        onEventCreated={(evt) => {
+          setEvents(prev => [evt, ...prev]);
+          setIsModalOpen(false);
+        }}
+      />
 
       {/* QR Scanner Modal */}
       <AnimatePresence>
@@ -330,6 +265,82 @@ const ClubHeadEvents = () => {
               </div>
               <QRScanner onScanSuccess={handleScanSuccess} />
               {isProcessingScan && <div className="mt-4 text-center font-black text-blue-600 animate-pulse text-[10px] uppercase tracking-widest">Validating Identity...</div>}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Details Modal */}
+      <AnimatePresence>
+        {detailsModalOpen && selectedEvent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-gray-900 rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[85vh]"
+            >
+              <div className="px-10 py-8 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                <div>
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{selectedEvent.title}</h2>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Event Roster & Details</p>
+                </div>
+                <button onClick={() => setDetailsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-8 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Registrations</p>
+                    <p className="text-3xl font-black text-gray-900 dark:text-white">{attendees.length}</p>
+                  </div>
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                    <p className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest mb-1">Checked In</p>
+                    <p className="text-3xl font-black text-emerald-600">{attendees.filter(a => a.status === 'attended').length}</p>
+                  </div>
+                </div>
+
+                <h3 className="text-sm font-black text-gray-900 dark:text-white mb-4 uppercase tracking-wider">Attendee Roster</h3>
+                {loadingAttendees ? (
+                  <div className="text-center py-8 text-gray-400 animate-pulse">Loading roster...</div>
+                ) : attendees.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No one has registered yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {attendees.map((attendee, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                             {attendee.users?.avatar_url ? (
+                               <img src={attendee.users.avatar_url} className="w-full h-full object-cover" />
+                             ) : (
+                               <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{attendee.users?.full_name?.charAt(0)}</div>
+                             )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">{attendee.users?.full_name}</p>
+                            <p className="text-xs text-gray-500">{attendee.users?.roll_no}</p>
+                          </div>
+                        </div>
+                        <div>
+                          {attendee.status === 'attended' ? (
+                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">Checked In</span>
+                          ) : (
+                            <span className="px-3 py-1 bg-gray-200 text-gray-600 text-xs font-bold rounded-full border border-gray-300">Registered</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}

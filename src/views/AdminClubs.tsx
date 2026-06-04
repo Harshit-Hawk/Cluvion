@@ -43,10 +43,36 @@ const AdminClubs = () => {
         
       if (clubsError) throw clubsError;
 
-      // Map to add dummy or fetched relations if needed, 
-      // though typically they'd be fetched via joins (left join club_members, etc.)
-      // For now we'll just use the raw data and let UI show members_count/head_name if they exist
-      setClubs(clubsData || []);
+      const { data: membersData } = await supabase.from('club_members').select('*');
+      const { data: usersData } = await supabase.from('users').select('id, full_name, email');
+
+      const enrichedClubs = (clubsData || []).map((club: any) => {
+        let members_count = 0;
+        let head_name = null;
+        
+        if (membersData) {
+          const clubMembers = membersData.filter((m: any) => m.club_id === club.id);
+          members_count = clubMembers.length;
+          
+          const head = clubMembers.find((m: any) => m.role === 'head');
+          if (head && usersData) {
+            // Check user_id or student_id depending on what schema uses
+            const userId = head.user_id || head.student_id;
+            const headUser = usersData.find((u: any) => u.id === userId);
+            if (headUser) {
+              head_name = headUser.full_name || headUser.email;
+            }
+          }
+        }
+        
+        return {
+          ...club,
+          members_count,
+          head_name
+        };
+      });
+
+      setClubs(enrichedClubs);
     } catch (err) {
       console.error('Error fetching admin clubs:', err);
       toast.error('Failed to load clubs.');
@@ -57,6 +83,33 @@ const AdminClubs = () => {
 
   useEffect(() => {
     fetchClubs();
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clubs' },
+        (payload) => {
+          fetchClubs(); // Re-fetch fully to re-calculate members and joins
+        }
+      )
+      .subscribe();
+
+    const membersChannel = supabase
+      .channel('schema-db-changes-members')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'club_members' },
+        (payload) => {
+          fetchClubs(); // Re-fetch to update head and counts
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(membersChannel);
+    };
   }, [user]);
 
   const handleCreateClub = async (e) => {

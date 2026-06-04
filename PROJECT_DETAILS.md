@@ -1,103 +1,78 @@
 # Cluvion: The Campus Operating System
 
-Cluvion is a premium, all-in-one engagement and management platform designed to revitalize campus life. It transforms student participation into a gamified journey, integrating club management, event tracking, and reputation building into a single, high-performance ecosystem.
+Cluvion is NOT a traditional ERP. It is a modern Campus Operating System that unifies Student Management, Attendance, Events, Clubs, Certificates, Placements, Campus Social Networking, and Gamification into one intelligent platform. The goal is to replace multiple disconnected college systems with one seamless, beautifully designed SaaS platform.
 
 ---
 
-## 🚀 Technical Stack
+## 🎯 PRODUCT VISION
 
-*   **Frontend**: Next.js (16.2+), React 18, TypeScript 6.
-*   **Styling**: Tailwind CSS 4 with custom glassmorphic design system.
-*   **Animations**: Framer Motion 12 (Premium transitions & micro-interactions).
-*   **Backend/DB**: Supabase (PostgreSQL, Auth, Real-time Engine, Edge Functions).
-*   **Icons**: Lucide React.
-*   **Utilities**: Date-fns (time-handling), React-Toastify (notifications).
-*   **QR System**: `html5-qrcode` (Scanning), `react-qr-code` (Generation).
+**For Students:** Join events/clubs, track attendance, earn badges, build campus profiles, access certificates, and apply for placements.
+**For Faculty:** Manage attendance, create events, publish announcements, manage academic activities, and generate reports.
+**For Club Coordinators:** Manage members, track participation, organize events, and generate certificates.
+**For Administration:** Manage departments, monitor attendance, track student engagement, generate ERP reports, and manage placements.
 
----
-
-## 🏗️ Project Architecture
-
-The project follows a modular, service-oriented architecture to ensure scalability and maintainability.
-
-### 1. File Structure
-*   `src/app`: Next.js App Router entry points and layout.
-*   `src/views`: Core page components (StudentDashboard, Leaderboard, Admin modules).
-*   `src/components`: Reusable UI elements (Feed, Layout, Widgets).
-*   `src/services`: Business logic layer (XPService, EngagementService, LeaderboardService).
-*   `src/context`: Global state management (AuthContext, NotificationContext).
-*   `src/lib`: Third-party configurations (Supabase client).
-*   `supabase/migrations`: Database schema, triggers, and RPC definitions.
+**User Roles (RBAC):**
+1. Super Admin
+2. College Admin
+3. Faculty
+4. Club Coordinator
+5. Placement Officer
+6. Student
 
 ---
 
-## 🎮 Gamification Engine (Core)
+## 📦 SYSTEM MODULES
 
-The "Prestige Engine" is the heartbeat of Cluvion, driving student engagement through data.
+### Module 1: Student Management ERP
+- Registration, Profiles, Roll Numbers, Course/Dept/Semester/Section Management.
+- **Profile Data:** Name, Roll No, Dept, Semester, Batch, Email, Phone, Picture, Attendance %, Events/Clubs Joined, Certificates, Achievements.
 
-### 1. XP & Transaction System (`XPService`)
-*   **Atomic Updates**: Every action (event attendance, badge unlock) is logged in `activity_logs`.
-*   **Anti-Duplicate**: Prevents double-awarding of XP for the same event or achievement using reference IDs.
-*   **Supabase Triggers**: Database-level triggers automatically update the user's `total_xp` and refresh leaderboard snapshots on every transaction.
+### Module 2: Attendance ERP
+- **Support:** QR Attendance, Manual, Excel Import, Bulk Upload.
+- **Features:** Daily, Event, Club Attendance, Reports, Analytics.
 
-### 2. Reputation Tiers (`EngagementService`)
-*   **Tier Progression**: Automatically calculates user rank based on XP thresholds:
-    *   `Novice` (0+) -> `Bronze` (100+) -> `Silver` (300+) -> `Gold` (600+) -> `Platinum` (1000+) -> `Diamond` (2000+) -> `Legend` (5000+).
-*   **Dynamic UI**: Progression bars on the dashboard show exact XP needed for the next tier.
+### Module 3: Events ERP
+- **Features:** Create/Register, Categories, Analytics, QR Check-in, Certificate Distribution.
+- **Lifecycle:** Draft → Published → Registration Open → Live → Completed.
 
-### 3. Participation Streaks
-*   **Logic**: Monitors consecutive daily activity.
-*   **Anti-Abuse**: Restricts streak increments to once per 24-hour window per user.
-*   **Streak Resets**: Automated triggers reset streaks to 0 if a gap of >24h is detected between activities.
+### Module 4: Club Management ERP
+- **Features:** Club Profiles, Membership Requests, Club Attendance, Events, Budget Tracking, Announcements.
 
-### 4. Dynamic Leaderboards (`LeaderboardService`)
-*   **Multi-Dimensional**: Supports filtering by:
-    *   **Timeframe**: All-time, Weekly, Monthly.
-    *   **Scope**: Global, Department-specific, Club-specific.
-*   **Performance**: Uses optimized Postgres RPCs (`get_dynamic_leaderboard`) to aggregate rankings without performance lag.
+### Module 5: Campus Feed
+- **Features:** Posts, Images, Videos, Announcements, Club/Event Updates.
+- **Categories:** All, Clubs, Events, Announcements.
 
----
+### Module 6: Gamification Engine
+- **XP System:** Points for Events, Clubs, Attendance, Volunteering, Achievements.
+- **Features:** Levels, Badges, Streaks, Leaderboards, Weekly Missions.
 
-## 🛠️ Key Modules
+### Module 7: Certificate Management
+- **Workflow:** Event Completed → Attendance Verified → Eligibility Checked → Certificate Generated → PDF Issued.
+- **Features:** PDF Generation, QR Verification, Download/Share.
 
-### 1. Attendance & Identity
-*   **QR Identity**: Every student has a unique, secure QR code.
-*   **QR Scanner**: Club Heads use an integrated scanner to verify attendance at events instantly.
-*   **Auto-Reward**: Successful QR scans trigger the `XPService` to award participation points immediately.
+### Module 8: Digital ID Card
+- **Features:** Dynamic QR Code, Verification, Event Check-In, Attendance Tracking.
 
-### 2. Unified Activity Feed
-*   **Social + System**: Blends standard club posts with gamification events (XP gains, badge unlocks).
-*   **Real-time Subscriptions**: Uses Supabase Real-time to inject new events into the feed without page refreshes.
-*   **Premium Visuals**: Custom `GamificationPost` cards with context-aware icons (Trophies, Awards, Zaps).
+### Module 9: Placement ERP
+- **Features:** Company Management, Job Drives, Applications, Resume Uploads, Interview Scheduling, Offer Management.
 
-### 3. Role-Based Access Control (RBAC)
-*   **Student**: Personal dashboard, event discovery, leaderboard, and profile.
-*   **Club Head**: Management tools for club events, member sync, and attendance scanning.
-*   **Admin**: Institution-wide analytics, user moderation, and configuration.
+### Module 10: Faculty Portal
+- **Features:** Attendance Management, Event Creation, Student Reports, Announcements, Academic Analytics.
 
-### 4. Notification Center
-*   **Instant Feedback**: Real-time alerts when a user:
-    *   Gains XP.
-    *   Unlocks a new Badge.
-    *   Rises on the Leaderboard.
-    *   Receives a club announcement.
+### Module 11: Admin ERP
+- **Dashboard:** Active Students, Attendance %, Active Clubs, Events, Certificates Issued, Placement Rate.
+- **Reports:** Attendance, Events, Clubs, Placements.
 
 ---
 
-## 🗄️ Database Schema Summary
-
-*   `users`: Core profile, role, and `total_xp`.
-*   `clubs`: Club metadata and head associations.
-*   `events`: Schedule, location, and RSVP data.
-*   `activity_logs`: Every engagement transaction (The source of truth).
-*   `user_badges`: Junction table for unlocked achievements.
-*   `user_streaks`: Persistent storage for current/longest participation streaks.
-*   `feed_posts`: Social content and system-generated engagement posts.
+## 🛠️ TECH STACK
+- **Frontend:** Next.js 15, TypeScript, Tailwind CSS, Framer Motion, ShadCN UI
+- **Backend:** Supabase (PostgreSQL, Row Level Security, Auth, Storage, Realtime)
+- **Deployment:** Vercel
 
 ---
 
-## 🎨 UI/UX Philosophy
-
-*   **Glassmorphism**: High-blur backdrops, subtle borders, and depth-based layering.
-*   **Tactile Feedback**: Every button and card uses Framer Motion for hover scales and tap responses.
-*   **Visual Hierarchy**: Information is grouped into "Bento Cards" for readability on high-density dashboards.
+## 🎨 UI/UX RULES
+- **Do NOT** create a generic ERP (avoid outdated admin panels, Bootstrap looks, excessive tables).
+- **Use:** Modern startup aesthetics, Mobile-first design, Discord-like community feel, Linear-inspired simplicity, Duolingo-inspired gamification.
+- **Homepage Goal:** Answer "What is happening?", "What should I do next?", and "What reward can I earn?"

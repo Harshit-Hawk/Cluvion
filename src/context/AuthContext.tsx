@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('role, full_name, email, designation, roll_no, college, avatar_url, course, dob')
+          .select('role, full_name, email, designation, roll_no, college, avatar_url, course, dob, department, semester, batch, section, phone')
           .eq('id', supaUser.id)
           .single();
         if (!mounted.current) return;
@@ -148,6 +148,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`public:users:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            const updatedProfile = payload.new as UserProfile;
+            const updatedRole = updatedProfile.role as UserRole;
+            
+            setRole(updatedRole);
+            setUserProfile(updatedProfile);
+            writeCache({ user, role: updatedRole, userProfile: updatedProfile });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const signup = async ({ email, password, fullName, rollNo, college }: SignupParams) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -192,14 +223,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-400 font-medium animate-pulse">Loading Cluvion…</p>
-          </div>
-        </div>
-      ) : children}
+      {children}
     </AuthContext.Provider>
   );
 };

@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 
 // ─── User & Auth ────────────────────────────────────────────
-export type UserRole = 'admin' | 'club_head' | 'student';
+export type UserRole = 'super_admin' | 'college_admin' | 'admin' | 'faculty' | 'club_coordinator' | 'club_head' | 'placement_officer' | 'student';
 
 export interface UserProfile {
   role: UserRole;
@@ -13,6 +13,11 @@ export interface UserProfile {
   avatar_url?: string;
   course?: string;
   dob?: string;
+  department?: string;
+  semester?: number;
+  batch?: string;
+  section?: string;
+  phone?: string;
 }
 
 export interface AuthContextValue {

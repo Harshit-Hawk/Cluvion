@@ -16,6 +16,7 @@ const AdminUsers = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [clubs, setClubs] = useState([]);
 
   // Edit User State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -29,7 +30,19 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchClubsList();
   }, [user]);
+
+  const fetchClubsList = async () => {
+    try {
+      const { data, error } = await supabase.from('clubs').select('id, name').order('name');
+      if (!error && data) {
+        setClubs(data);
+      }
+    } catch (error) {
+      console.error('Error fetching clubs:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -51,6 +64,11 @@ const AdminUsers = () => {
   const handleUpdateRole = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    
+    if (editingUser.newRole === 'club_head' && !editingUser.selectedClubId) {
+      toast.error('Please select a club for the club head role');
+      return;
+    }
 
     try {
       setIsUpdating(true);
@@ -59,7 +77,28 @@ const AdminUsers = () => {
         .update({ role: editingUser.newRole })
         .eq('id', editingUser.id);
       if (error) throw error;
-      toast.success('User role updated successfully');
+      
+      // If club_head, add them to club_members
+      if (editingUser.newRole === 'club_head' && editingUser.selectedClubId) {
+        // Upsert to handle if they are already in the club or we just need to update their role
+        const { error: clubError } = await supabase
+          .from('club_members')
+          .upsert({
+            club_id: editingUser.selectedClubId,
+            user_id: editingUser.id,
+            role: 'head'
+          }, { onConflict: 'club_id,user_id' });
+          
+        if (clubError) {
+          console.error('Error assigning club head:', clubError);
+          toast.warning('Role updated, but failed to assign to the selected club.');
+        } else {
+          toast.success('User role updated and assigned to club successfully');
+        }
+      } else {
+        toast.success('User role updated successfully');
+      }
+      
       setUsers(users.map(u => u.id === editingUser.id ? { ...u, role: editingUser.newRole } : u));
       setIsEditModalOpen(false);
     } catch (error) {
@@ -353,6 +392,23 @@ const AdminUsers = () => {
                       <option value="club_head">Club Head</option>
                       <option value="admin">Admin</option>
                     </select>
+                    
+                    {editingUser.newRole === 'club_head' && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Club</label>
+                        <select
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none"
+                          value={editingUser.selectedClubId || ''}
+                          onChange={(e) => setEditingUser({ ...editingUser, selectedClubId: e.target.value })}
+                          disabled={isUpdating}
+                        >
+                          <option value="" disabled>-- Choose a Club --</option>
+                          {clubs.map(club => (
+                            <option key={club.id} value={club.id}>{club.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-4 flex justify-end gap-3 mt-6">
@@ -366,7 +422,7 @@ const AdminUsers = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={isUpdating || editingUser.role === editingUser.newRole}
+                      disabled={isUpdating || (editingUser.role === editingUser.newRole && editingUser.newRole !== 'club_head')}
                       className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       {isUpdating ? 'Saving...' : 'Save Changes'}

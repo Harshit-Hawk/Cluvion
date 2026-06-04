@@ -13,6 +13,7 @@ const ClubHeadMyClub = () => {
   const [loading, setLoading] = useState(false);
   const [clubDetails, setClubDetails] = useState(null);
   const [members, setMembers] = useState([]);
+  const [applications, setApplications] = useState([]);
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
@@ -60,16 +61,22 @@ const ClubHeadMyClub = () => {
 
         const clubId = memberData.club_id;
 
-        // Fetch club details + members in parallel
-        const [clubRes, membersRes] = await withTimeout(
+        // Fetch club details + members + applications in parallel
+        const [clubRes, membersRes, appsRes] = await withTimeout(
           Promise.all([
             supabase.from('clubs').select('*').eq('id', clubId).maybeSingle(),
             supabase
               .from('memberships')
-              .select('id, role, joined_at, users(full_name, email)')
+              .select('id, role, joined_at, users(id, full_name, email, avatar_url)')
               .eq('club_id', clubId)
               .order('role', { ascending: true })
               .order('joined_at', { ascending: false }),
+            supabase
+              .from('club_recruitment')
+              .select('id, message, created_at, users(id, full_name, email, avatar_url, roll_no)')
+              .eq('club_id', clubId)
+              .eq('status', 'pending')
+              .order('created_at', { ascending: false }),
           ])
         );
 
@@ -77,10 +84,12 @@ const ClubHeadMyClub = () => {
 
         if (clubRes.error) throw clubRes.error;
         if (membersRes.error) throw membersRes.error;
+        if (appsRes.error) throw appsRes.error;
 
         setClubDetails(clubRes.data);
         setEditDescription(clubRes.data?.description || '');
         setMembers(membersRes.data || []);
+        setApplications(appsRes.data || []);
 
       } catch (err: any) {
         if (cancelled) return;
@@ -131,6 +140,48 @@ const ClubHeadMyClub = () => {
     } catch (err) {
       console.error(err);
       toast.error('Failed to remove member.');
+    }
+  };
+
+  const handleProcessApplication = async (appId, studentId, action) => {
+    try {
+      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      const { error } = await supabase.from('club_recruitment').update({ status: newStatus }).eq('id', appId);
+      if (error) throw error;
+
+      if (action === 'approve') {
+        const { error: insertError } = await supabase.from('memberships').insert({
+          club_id: clubDetails.id,
+          user_id: studentId,
+          role: 'member'
+        });
+        if (insertError) throw insertError;
+        toast.success('Application approved. Member added to roster.');
+      } else {
+        toast.success('Application rejected.');
+      }
+      
+      // Remove from pending list
+      setApplications(prev => prev.filter(a => a.id !== appId));
+      // Refresh member list if approved (simplest way is to reload but we can manually append)
+      if (action === 'approve') {
+        // Just trigger a re-fetch of members if possible, or trust user to refresh
+      }
+      
+    } catch (err) {
+      toast.error('Failed to process application');
+    }
+  };
+
+  const handlePromoteMember = async (membershipId, memberName) => {
+    if (!window.confirm(`Promote ${memberName} to Core Team?`)) return;
+    try {
+      const { error } = await supabase.from('memberships').update({ role: 'core' }).eq('id', membershipId);
+      if (error) throw error;
+      setMembers(prev => prev.map(m => m.id === membershipId ? { ...m, role: 'core' } : m));
+      toast.success(`${memberName} promoted to Core Team.`);
+    } catch (err) {
+      toast.error('Promotion failed.');
     }
   };
 
@@ -252,13 +303,41 @@ const ClubHeadMyClub = () => {
           </div>
         </motion.div>
 
-        {/* Right Column - Membership List */}
+        {/* Right Column - Membership List & Applications */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="lg:col-span-2"
+          className="lg:col-span-2 flex flex-col gap-4"
         >
+          {applications.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-amber-50 dark:bg-amber-900/10">
+                <h3 className="text-sm font-bold text-amber-900 dark:text-amber-500 flex items-center gap-2">
+                  <Mail size={16} /> Pending Applications
+                </h3>
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-800 px-2.5 py-1 rounded-full">{applications.length} New</span>
+              </div>
+              <div className="divide-y divide-gray-50 dark:divide-gray-800 max-h-80 overflow-y-auto">
+                {applications.map(app => (
+                  <div key={app.id} className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-start">
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-white text-sm">{app.users?.full_name}</p>
+                      <p className="text-xs text-gray-500 font-mono mb-2">{app.users?.roll_no}</p>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg italic">
+                        "{app.message}"
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0 w-full sm:w-auto">
+                      <button onClick={() => handleProcessApplication(app.id, app.users?.id, 'reject')} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition">Reject</button>
+                      <button onClick={() => handleProcessApplication(app.id, app.users?.id, 'approve')} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-sm">Approve</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -296,6 +375,8 @@ const ClubHeadMyClub = () => {
                       <td className="px-6 py-4">
                         {member.role === 'head' ? (
                           <span className="px-2.5 py-1 text-[10px] font-bold tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg uppercase shadow-sm border border-emerald-200/50 dark:border-emerald-800/50">Club Head</span>
+                        ) : member.role === 'core' ? (
+                          <span className="px-2.5 py-1 text-[10px] font-bold tracking-widest text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 rounded-lg uppercase shadow-sm border border-purple-200/50 dark:border-purple-800/50">Core Team</span>
                         ) : (
                           <span className="px-2.5 py-1 text-[10px] font-bold tracking-widest text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg uppercase shadow-sm border border-gray-200/50 dark:border-gray-700/50">Member</span>
                         )}
@@ -303,7 +384,15 @@ const ClubHeadMyClub = () => {
                       <td className="px-6 py-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {new Date(member.joined_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        {member.role === 'member' && (
+                          <button
+                            onClick={() => handlePromoteMember(member.id, member.users?.full_name)}
+                            className="text-purple-600 hover:text-purple-800 p-1.5 hover:bg-purple-50 rounded-lg transition-colors text-[10px] font-bold uppercase tracking-wider"
+                          >
+                            Promote
+                          </button>
+                        )}
                         {member.role !== 'head' && (
                           <button
                             onClick={() => handleRemoveMember(member.id, member.users?.full_name)}

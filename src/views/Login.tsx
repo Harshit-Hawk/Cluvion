@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -94,7 +94,7 @@ const Login = () => {
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, signup } = useAuth();
+  const { login, signup, user, role, sessionReady } = useAuth();
   const router = useRouter();
   const collegeDomain = typeof window !== 'undefined' ? (localStorage.getItem('college_domain') || '') : '';
 
@@ -112,7 +112,7 @@ const Login = () => {
     try {
       setError(null);
       await login(email, password);
-      router.push('/dashboard');
+      window.location.href = '/';
     } catch {
       setError('Login failed. Please check your credentials.');
     }
@@ -137,6 +137,16 @@ const Login = () => {
   };
 
   const switchTab = (t) => { setTab(t); setError(null); };
+
+  useEffect(() => {
+    if (sessionReady && user && role) {
+      if (role === 'admin' || role === 'super_admin' || role === 'college_admin') router.replace('/admin');
+      else if (role === 'faculty') router.replace('/faculty');
+      else if (role === 'club_head') router.replace('/head');
+      else if (role === 'club_coordinator') router.replace('/coordinator');
+      else router.replace('/student');
+    }
+  }, [user, role, sessionReady, router]);
 
   return (
     <div className="min-h-screen flex overflow-hidden bg-[#0a0a0f]">

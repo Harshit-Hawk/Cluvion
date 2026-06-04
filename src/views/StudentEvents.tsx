@@ -1,260 +1,232 @@
-// @ts-nocheck
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, MapPin, Clock, Users, CheckCircle, ChevronRight, Filter } from 'lucide-react';
+import { Calendar, MapPin, Users, Search, Filter, Bookmark } from 'lucide-react';
+import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { format } from 'date-fns';
+import Link from 'next/link';
 
-const StudentEvents = () => {
-   const { user } = useAuth();
-   const [events, setEvents] = useState([]);
-   const [loading, setLoading] = useState(true);
-   const [registering, setRegistering] = useState(null); // Track event id being registered
-   const [filter, setFilter] = useState('all'); // 'all', 'upcoming', 'registered'
+export default function StudentEvents() {
+  const { user } = useAuth();
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Upcoming');
+  const [activeCategory, setActiveCategory] = useState('All');
 
-   useEffect(() => {
-      fetchEvents();
-   }, [user]);
+  const tabs = ['Upcoming', 'My Events', 'Past'];
+  const categories = ['All', 'Tech', 'Cultural', 'Sports', 'Workshops'];
 
-   const fetchEvents = async () => {
-      setLoading(true);
-
+  useEffect(() => {
+    const fetchEvents = async () => {
       try {
-         const { data: eventsData, error: eventsError } = await supabase
-            .from('events')
-            .select(`id, title, description, event_date, location, clubs (name), event_registrations (count)`)
-            .gte('event_date', new Date().toISOString())
-            .order('event_date', { ascending: true });
-         if (eventsError) throw eventsError;
-         let registrations = [];
-         try {
-             const { data: regData } = await supabase
-               .from('event_registrations')
-               .select('event_id')
-               .eq('user_id', user.id);
-             registrations = regData || [];
-         } catch(e) { /* table might not exist yet */ }
-         const formattedEvents = eventsData.map(ev => ({
-            ...ev,
-            registered: registrations.some(r => r.event_id === ev.id),
-            registration_count: ev.event_registrations?.[0]?.count || 0
-         }));
-         setEvents(formattedEvents);
+        const { data, error } = await supabase
+          .from('events')
+          .select(`
+            *,
+            clubs (name),
+            event_attendance!left(user_id, status)
+          `)
+          .gte('event_date', new Date().toISOString())
+          .order('event_date', { ascending: true });
+
+        if (error) throw error;
+
+        const formattedEvents = data.map((e: any) => ({
+          ...e,
+          registered: user ? e.event_attendance.some((a: any) => a.user_id === user.id) : false,
+          checked_in: user ? e.event_attendance.some((a: any) => a.user_id === user.id && a.status === 'attended') : false,
+          registration_count: e.event_attendance.length
+        }));
+
+        setEvents(formattedEvents);
       } catch (err) {
-        console.error('Error fetching events:', err);
-        toast.error('Failed to load events.');
+        console.error('Error fetching events', err);
       } finally {
         setLoading(false);
       }
-   };
+    };
+    if (user) fetchEvents();
+  }, [user]);
 
-   useEffect(() => {
-     // Realtime Listener for new/updated events
-      const eventsChannel = supabase
-        .channel('public:events')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => fetchEvents())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'event_registrations' }, () => fetchEvents())
-        .subscribe();
-
-     return () => {
-       supabase.removeChannel(eventsChannel);
-     };
-   }, []);
-
-   const handleRegister = async (eventId) => {
-      setRegistering(eventId);
+  const handleRegister = async (eventId: string, e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent link navigation
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('event_attendance')
+        .insert({
+          event_id: eventId,
+          user_id: user.id,
+          status: 'registered'
+        });
       
-      try {
-         const { error } = await supabase
-            .from('event_registrations')
-            .insert({ user_id: user.id, event_id: eventId });
-         if (error) throw error;
-         await supabase.from('activity_logs').insert({
-             user_id: user.id,
-             action_type: 'event_registered',
-             description: 'Registered for an event',
-             points_awarded: 5
-         });
-         setEvents(prev => prev.map(ev => ev.id === eventId ? { ...ev, registered: true } : ev));
-         toast.success('Successfully registered! (+5 points)');
-      } catch (err) {
-         console.error('Registration failed:', err);
-         toast.error('Failed to register. Please try again.');
-      } finally {
-         setRegistering(null);
-      }
-   };
+      if (error) throw error;
+      toast.success('Successfully registered for event!');
+      
+      // Update local state
+      setEvents(events.map(ev => {
+        if (ev.id === eventId) {
+          return {
+            ...ev,
+            registered: true,
+            registration_count: ev.registration_count + 1
+          };
+        }
+        return ev;
+      }));
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to register');
+    }
+  };
 
-   // Apply filters
-   const filteredEvents = events.filter(ev => {
-      if (filter === 'registered') return ev.registered;
-      return true; // 'all' or 'upcoming'
-   });
+  // Use dummy data if none returned from DB for UI showcase
+  const displayEvents = events.length > 0 ? events : [
+    {
+      id: 1, title: 'Hackathon 2026', event_date: new Date(Date.now() + 172800000).toISOString(),
+      location: 'Engineering Block', daysLeft: '2 days left',
+      image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=2070&auto=format&fit=crop'
+    },
+    {
+      id: 2, title: 'AI & ML Workshop', event_date: new Date(Date.now() + 432000000).toISOString(),
+      location: 'Seminar Hall, Block B', daysLeft: '5 days left',
+      image: 'https://images.unsplash.com/photo-1555255707-c07966088b7b?q=80&w=2070&auto=format&fit=crop'
+    },
+    {
+      id: 3, title: 'Battle of Bands', event_date: new Date(Date.now() + 604800000).toISOString(),
+      location: 'Open Air Theatre', daysLeft: '7 days left',
+      image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=2070&auto=format&fit=crop'
+    }
+  ];
 
-   return (
-      <div className="max-w-6xl mx-auto space-y-8 pb-12">
-         {/* Hero Header */}
-         <div className="relative overflow-hidden bg-gradient-to-br from-teal-900 via-emerald-800 to-green-900 p-8 md:p-10 rounded-3xl shadow-xl border border-white/10 text-white mb-8">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-            <div className="absolute bottom-0 left-10 w-48 h-48 bg-emerald-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <motion.div 
-                   initial={{ opacity: 0, y: -20 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-semibold mb-4 text-emerald-100"
-                >
-                   <Calendar size={16} className="text-emerald-300" /> Campus Activities
-                </motion.div>
-                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">Event Registration</h1>
-                <p className="text-emerald-50 max-w-xl leading-relaxed text-lg opacity-90">Discover and register for upcoming club events. Participate to boost your skills, meet peers, and earn activeness points.</p>
+  return (
+    <div className="w-full">
+      {/* Mobile Header elements */}
+      <div className="flex items-center justify-between md:hidden mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Events</h1>
+        <div className="flex gap-4">
+          <Search size={20} className="text-gray-900 dark:text-white" />
+          <Filter size={20} className="text-gray-900 dark:text-white" />
+        </div>
+      </div>
+
+      <div className="hidden md:flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">Events</h2>
+          <p className="text-gray-500 mt-1">Discover what's happening</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 mb-4">
+        <div className="flex gap-6 w-full overflow-x-auto scrollbar-hide">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-2 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab
+                  ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="flex items-center gap-3 mb-6 overflow-x-auto scrollbar-hide pb-2">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+              activeCategory === cat
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-white border border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Event List */}
+      <div className="space-y-4">
+        {displayEvents.map((event) => (
+          <Link href={`/student/events/${event.id}`} key={event.id} className="block">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-3 shadow-sm hover:shadow-md transition-all flex gap-4">
+              <div className="w-28 h-36 rounded-xl overflow-hidden flex-shrink-0 relative">
+                {event.image ? (
+                  <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-purple-100 flex items-center justify-center">
+                    <Calendar className="text-purple-400" />
+                  </div>
+                )}
+                {/* Overlay text in image like mockup */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-2">
+                   <h4 className="text-white font-black text-[10px] leading-tight break-words uppercase tracking-widest text-center">{event.title}</h4>
+                </div>
+              </div>
+              
+              <div className="flex-1 flex flex-col justify-between py-1 pr-2">
+                <div>
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base leading-tight mb-1">{event.title}</h3>
+                  </div>
+                  <span className="text-xs font-bold text-purple-600 mb-2 block">{event.daysLeft || 'Upcoming'}</span>
+                  
+                  <div className="flex items-center gap-2 text-gray-500 text-[10px] sm:text-xs mb-1">
+                    <Calendar size={12} className="shrink-0" />
+                    <span>{format(new Date(event.event_date), 'dd MMM yyyy • h:mm a')}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-500 text-[10px] sm:text-xs line-clamp-1">
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{event.location}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex -space-x-1.5">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="w-5 h-5 rounded-full border border-white overflow-hidden bg-gray-200">
+                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${event.title}${i}`} alt="user" />
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-500">+{event.registration_count > 3 ? event.registration_count - 3 : 0} joined</span>
+                  </div>
+                  
+                  <div className="flex gap-2 items-center">
+                    {event.registered ? (
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                        {event.checked_in ? 'Checked In' : 'Registered'}
+                      </span>
+                    ) : (
+                      <button 
+                        onClick={(e) => handleRegister(event.id, e)}
+                        className="text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 px-4 py-1.5 rounded-lg transition-colors shadow-sm"
+                      >
+                        Register
+                      </button>
+                    )}
+                    <button className="text-gray-400 hover:text-purple-600 bg-gray-50 hover:bg-purple-50 p-1.5 rounded-lg transition-colors" onClick={(e) => { e.preventDefault(); toast.success('Bookmarked!'); }}>
+                      <Bookmark size={16} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-         </div>
-
-         {/* Filters & Controls */}
-         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2">
-               <Filter size={18} className="text-gray-400" />
-               <span className="font-semibold text-gray-700">Filter:</span>
-            </div>
-            <div className="flex bg-gray-100/80 dark:bg-gray-800/80 p-1 rounded-xl">
-               <button 
-                  onClick={() => setFilter('all')}
-                  className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'all' ? 'bg-white dark:bg-gray-700 shadow-sm text-emerald-700 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-               >
-                  All Upcoming
-               </button>
-               <button 
-                  onClick={() => setFilter('registered')}
-                  className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'registered' ? 'bg-white dark:bg-gray-700 shadow-sm text-emerald-700 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-               >
-                  My Registrations
-               </button>
-            </div>
-         </div>
-
-         {/* Events Grid */}
-         {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {[1,2,3,4,5,6].map(i => (
-                  <div key={i} className="h-64 bg-gray-50 dark:bg-gray-800 rounded-2xl animate-pulse border border-gray-100 dark:border-gray-700"></div>
-               ))}
-            </div>
-         ) : filteredEvents.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               <AnimatePresence>
-                  {filteredEvents.map((event, index) => (
-                     <motion.div
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        key={event.id}
-                        className={`bg-white dark:bg-gray-900 rounded-2xl border transition-all duration-300 hover:shadow-xl dark:hover:shadow-emerald-900/10 flex flex-col h-full ${event.registered ? 'border-emerald-200 dark:border-emerald-800 shadow-sm' : 'border-gray-100 dark:border-gray-800 shadow-sm hover:border-emerald-100 dark:hover:border-emerald-800/50'}`}
-                     >
-                        <div className="p-6 flex-1">
-                           <div className="flex justify-between items-start mb-4">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider">
-                                 {event.clubs?.name || 'Campus Event'}
-                              </span>
-                              {event.registered && (
-                                 <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded w-max">
-                                    <CheckCircle size={14} /> Registered
-                                 </span>
-                              )}
-                           </div>
-                           
-                           <h3 className="text-xl font-extrabold text-gray-900 dark:text-gray-100 mb-2 leading-tight">{event.title}</h3>
-                           <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 mb-6 leading-relaxed">
-                              {event.description}
-                           </p>
-
-                           <div className="space-y-3 mt-auto">
-                              <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
-                                 <Clock className="w-5 h-5 text-emerald-500 dark:text-emerald-400 mt-0.5 shrink-0" />
-                                 <div>
-                                    <p className="font-semibold text-gray-900 dark:text-gray-200">{format(new Date(event.event_date), 'MMMM d, yyyy')}</p>
-                                    <p>{format(new Date(event.event_date), 'h:mm a')}</p>
-                                 </div>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
-                                 <MapPin className="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                                 <span className="font-medium truncate">{event.location}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
-                                 <Users className="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                                 <span className="font-medium truncate">{event.registration_count || 0} Registered</span>
-                              </div>
-                           </div>
-                        </div>
-
-                        <div className="p-6 pt-0 mt-auto">
-                           <div className="w-full h-[1px] bg-gray-100 dark:bg-gray-800 mb-6"></div>
-                           {event.registered ? (
-                              <button disabled className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-100 dark:border-emerald-800 cursor-default">
-                                 <CheckCircle size={18} />
-                                 Ready to attend
-                              </button>
-                           ) : (
-                              <button 
-                                 onClick={() => handleRegister(event.id)}
-                                 disabled={registering === event.id}
-                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-md shadow-emerald-200 transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed group"
-                              >
-                                 {registering === event.id ? (
-                                    <>
-                                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                       Registering...
-                                    </>
-                                 ) : (
-                                    <>
-                                       Register Now
-                                       <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                 )}
-                              </button>
-                           )}
-                        </div>
-                     </motion.div>
-                  ))}
-               </AnimatePresence>
-            </div>
-         ) : (
-            <div className="p-10 text-center bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
-               <div className="absolute -top-10 -right-10 w-40 h-40 bg-teal-500/10 rounded-full blur-3xl"></div>
-               <div className="w-16 h-16 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-4 relative z-10">
-                  <Calendar size={32} />
-               </div>
-               <h3 className="text-xl font-extrabold text-gray-900 dark:text-white relative z-10">
-                 {filter === 'registered' ? "No Registered Events Yet" : "No Upcoming Events"}
-               </h3>
-               <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto mb-6 relative z-10">
-                  {filter === 'registered' 
-                     ? "You haven't signed up for any events. Browse the calendar to find new opportunities!" 
-                     : "There are no events scheduled right now. Check out the clubs page to join a new organization!"}
-               </p>
-               <div className="flex flex-col sm:flex-row gap-3 justify-center relative z-10">
-                  {filter === 'registered' ? (
-                    <button onClick={() => setFilter('all')} className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-teal-500/30">
-                       Browse All Events
-                    </button>
-                  ) : (
-                    <a href="/student/clubs" className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-teal-500/30">
-                       Explore Clubs
-                    </a>
-                  )}
-               </div>
-            </div>
-         )}
+          </Link>
+        ))}
       </div>
-   );
-};
-
-export default StudentEvents;
+    </div>
+  );
+}

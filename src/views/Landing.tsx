@@ -11,6 +11,7 @@ import {
   Star, Shield, Globe, ChevronDown, Sun, Moon, CheckCircle2,
   BookOpen, MessageSquare, Trophy, Sparkles
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 /* ──────────────────────────────────────────────────────────
    THEME CONTEXT
@@ -144,7 +145,14 @@ function StepCard({ number, title, body, dark, index }) {
 ══════════════════════════════════════════════════════════ */
 export default function Landing() {
   const router = useRouter();
+  const { user, sessionReady } = useAuth();
   const { dark, toggle } = useTheme();
+  
+  useEffect(() => {
+    if (sessionReady && user) {
+      router.replace('/welcome');
+    }
+  }, [user, sessionReady, router]);
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '22%']);

@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Globe, ArrowRight, Zap, CheckCircle2, Users, Calendar, Award, Sparkles } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 /* ── Floating particle dot ───────────────────────────────── */
 function Particle({ x, y, size, duration, delay }) {
@@ -63,6 +64,18 @@ const Welcome = () => {
   const [submitted, setSubmitted] = useState(false);
   const router = useRouter();
   const inputRef = useRef(null);
+
+  const { user, role, sessionReady } = useAuth();
+
+  useEffect(() => {
+    if (sessionReady && user && role) {
+      if (role === 'admin' || role === 'super_admin' || role === 'college_admin') router.replace('/admin');
+      else if (role === 'faculty') router.replace('/faculty');
+      else if (role === 'club_head') router.replace('/head');
+      else if (role === 'club_coordinator') router.replace('/coordinator');
+      else router.replace('/student');
+    }
+  }, [user, role, sessionReady, router]);
 
   // Mouse parallax for left panel
   const mx = useMotionValue(0.5);

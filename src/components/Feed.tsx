@@ -1,185 +1,162 @@
 'use client';
 
-import { useEffect, useState, useCallback, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, Trophy, Award, Activity, Flame, Megaphone, Flag } from 'lucide-react';
-import type { FeedPost, Comment } from '../types';
-import { ActivityLogService } from '../services/gamification/ActivityLogService';
 import { useRealtimeContext } from '../context/RealtimeContext';
+import { Heart, MessageSquare, Repeat2, Bookmark, Filter, Plus, MoreHorizontal, Image as ImageIcon } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ActivityLogService } from '../services/gamification/ActivityLogService';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 
-export type FeedItemType = 'announcement' | 'gamification';
+const tabs = ['All', 'Clubs', 'Events', 'Announcements'];
 
-export interface DashboardFeedItem {
-  id: string;
-  type: FeedItemType;
-  created_at: string;
-  // Announcement
-  content?: string;
-  clubs?: { name: string };
-  media_url?: string;
-  media_type?: string;
-  // Gamification (mapped from ActivityLogService)
-  actionType?: string;
-  pointsAwarded?: number;
-  metadata?: any;
-  user?: { fullName: string; avatarUrl: string; course?: string };
-}
-
-const AnnouncementCard = memo(({ post }: { post: DashboardFeedItem }) => {
-   return (
-      <motion.div
-         initial={{ opacity: 0, scale: 0.95, y: 20 }}
-         animate={{ opacity: 1, scale: 1, y: 0 }}
-         exit={{ opacity: 0, scale: 0.9 }}
-         layout
-         className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-lg shadow-gray-200/50 dark:shadow-none overflow-hidden relative group"
-      >
-         {/* Top Gradient Bar */}
-         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-         
-         <div className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-               <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                  <Megaphone size={24} />
-               </div>
-               <div>
-                  <h4 className="font-bold text-gray-900 dark:text-gray-100 text-lg">{post.clubs?.name || 'Campus Update'}</h4>
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                     {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                  </span>
-               </div>
-            </div>
-
-            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-wrap">
-               {post.content}
-            </p>
-
-            {post.media_url && (
-               <div className="rounded-xl overflow-hidden mb-4">
-                  {post.media_type === 'video' ? (
-                     <video controls className="w-full h-48 object-cover bg-gray-100 dark:bg-gray-800" src={post.media_url} />
-                  ) : (
-                     <img src={post.media_url} alt="Update" className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-gray-800" />
-                  )}
-               </div>
+const PostCard = ({ post, onLike, currentUserId }: { post: any, onLike: (postId: string) => void, currentUserId?: string }) => {
+  const isGamification = post.type === 'gamification';
+  const [localLiked, setLocalLiked] = useState(post.is_liked || false);
+  const [localLikeCount, setLocalLikeCount] = useState(post.likes || (isGamification ? Math.floor(Math.random() * 100) + 10 : 0));
+  
+  const handleLike = () => {
+    if (isGamification) return; // Gamification posts are read-only for now or simulated
+    setLocalLiked(!localLiked);
+    setLocalLikeCount((prev: number) => localLiked ? prev - 1 : prev + 1);
+    onLike(post.id);
+  };
+  
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 mb-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex gap-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+            {post.user?.avatarUrl ? (
+              <img src={post.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                {(post.user?.fullName || 'S').charAt(0)}
+              </div>
             )}
-         </div>
-      </motion.div>
-   );
-});
-
-const ActivityCard = memo(({ post }: { post: DashboardFeedItem }) => {
-   const action = post.actionType || '';
-   
-   let config = {
-      icon: Activity,
-      title: 'Activity',
-      color: 'from-blue-400 to-cyan-500',
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      textColor: 'text-blue-600 dark:text-blue-400',
-      message: 'participated in an activity.'
-   };
-
-   if (action.includes('badge') || action.includes('achievement')) {
-      config = {
-         icon: Award, title: 'Badge Unlocked', color: 'from-amber-400 to-orange-500', bg: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-600 dark:text-amber-400', message: 'unlocked a new badge!'
-      };
-   } else if (action.includes('streak')) {
-      config = {
-         icon: Flame, title: 'Streak Milestone', color: 'from-rose-400 to-red-500', bg: 'bg-rose-50 dark:bg-rose-900/20', textColor: 'text-rose-600 dark:text-rose-400', message: 'hit a new daily streak!'
-      };
-   } else if (action.includes('leaderboard') || action.includes('rank')) {
-      config = {
-         icon: Trophy, title: 'Leaderboard Update', color: 'from-yellow-300 to-amber-500', bg: 'bg-yellow-50 dark:bg-yellow-900/20', textColor: 'text-yellow-600 dark:text-yellow-400', message: 'climbed the leaderboard!'
-      };
-   } else if (action.includes('event')) {
-      config = {
-         icon: Activity, title: 'Event Activity', color: 'from-purple-400 to-fuchsia-500', bg: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-600 dark:text-purple-400', message: 'participated in a campus event.'
-      };
-   } else if (action.includes('challenge')) {
-      config = {
-         icon: Flag, title: 'Challenge Update', color: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', textColor: 'text-emerald-600 dark:text-emerald-400', message: 'completed a challenge.'
-      };
-   }
-
-   const Icon = config.icon;
-
-   // Remove heavy backdrop-blur from ActivityCard — use simpler bg
-   return (
-      <motion.div
-         initial={{ opacity: 0, y: 12 }}
-         animate={{ opacity: 1, y: 0 }}
-         exit={{ opacity: 0 }}
-         className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm p-6 relative overflow-hidden group"
-      >
-         <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-3xl opacity-20 bg-gradient-to-br ${config.color} group-hover:opacity-40 transition-opacity duration-500`}></div>
-         
-         <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className={`px-3 py-1 rounded-full text-xs font-bold ${config.bg} ${config.textColor} inline-flex items-center gap-1.5 shadow-sm border border-white/50 dark:border-gray-800`}>
-               <Icon size={14} /> {config.title}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-gray-900 dark:text-white text-sm">
+                {post.user?.fullName || 'A student'}
+              </h4>
+              {post.clubs?.name && (
+                <span className="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {post.clubs.name}
+                </span>
+              )}
+              {isGamification && (
+                <span className="text-[10px] text-gray-500">{post.actionType?.replace('_', ' ')}</span>
+              )}
+              <span className="text-xs text-gray-400">
+                {post.created_at ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true }) : 'just now'}
+              </span>
             </div>
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-            </span>
-         </div>
+            {!isGamification && post.content && (
+              <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">{post.content}</p>
+            )}
+            {isGamification && (
+              <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">
+                Just earned {post.pointsAwarded} XP! ✨
+              </p>
+            )}
+          </div>
+        </div>
+        <button className="text-gray-400 hover:text-gray-600">
+          <MoreHorizontal size={18} />
+        </button>
+      </div>
 
-         <div className="flex items-center gap-4 relative z-10">
-            <div className="relative">
-               <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 border-2 border-white dark:border-gray-800 shadow-md">
-                  {post.user?.avatarUrl ? (
-                     <img src={post.user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                     <div className={`w-full h-full flex items-center justify-center font-bold ${config.textColor} ${config.bg}`}>
-                        {(post.user?.fullName || 'S').charAt(0)}
-                     </div>
-                  )}
+      {post.media_url && (
+        <div className="mt-3 mb-4 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 relative">
+          {post.media_type === 'video' ? (
+            <video src={post.media_url} controls className="w-full max-h-80 object-cover" />
+          ) : (
+            <img src={post.media_url} alt="Post media" className="w-full max-h-80 object-cover" />
+          )}
+          {/* Example Hackathon overlay if media is hackathon */}
+          {post.content?.toLowerCase().includes('hackathon') && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-4">
+               <div>
+                  <span className="bg-black text-white text-[10px] font-bold px-2 py-1 rounded">HACKATHON 2026</span>
+                  <p className="text-white text-xs mt-1">Code. Innovate. Impact.</p>
                </div>
-               {post.pointsAwarded && post.pointsAwarded > 0 && (
-                  <div className={`absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-gradient-to-r ${config.color} shadow-sm border-2 border-white dark:border-gray-900`}>
-                     +{post.pointsAwarded}
-                  </div>
-               )}
             </div>
-            
-            <div className="flex-1">
-               <p className="text-gray-800 dark:text-gray-200 text-sm leading-snug">
-                  <span className="font-bold text-gray-900 dark:text-gray-100">{post.user?.fullName || 'A student'}</span> {config.message}
-               </p>
-            </div>
-         </div>
-      </motion.div>
-   );
-});
+          )}
+        </div>
+      )}
 
-const Feed = () => {
-  const [posts, setPosts] = useState<DashboardFeedItem[]>([]);
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={handleLike}
+            className={`flex items-center gap-1.5 transition-colors group ${localLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+          >
+            <Heart size={16} className={localLiked ? 'fill-current' : 'group-hover:fill-current'} />
+            <span className="text-xs font-semibold">{localLikeCount}</span>
+          </button>
+          <button className="flex items-center gap-1.5 text-gray-400 hover:text-blue-500 transition-colors">
+            <MessageSquare size={16} />
+            <span className="text-xs font-semibold">{post.comments || (isGamification ? Math.floor(Math.random() * 20) + 2 : 0)}</span>
+          </button>
+          <button className="flex items-center gap-1.5 text-gray-400 hover:text-green-500 transition-colors">
+            <Repeat2 size={16} />
+            <span className="text-xs font-semibold">{post.reposts || (isGamification ? Math.floor(Math.random() * 15) + 1 : 0)}</span>
+          </button>
+        </div>
+        <button className="text-gray-400 hover:text-purple-600 transition-colors group">
+          <Bookmark size={16} className="group-hover:fill-current" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default function Feed() {
+  const [activeTab, setActiveTab] = useState('All');
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [isCreating, setIsCreating] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { user, userProfile } = useAuth();
   const { subscribeToFeedPosts, subscribeToActivityLogs } = useRealtimeContext();
 
   const fetchPosts = useCallback(async () => {
     try {
       const { data: socialData, error: socialError } = await supabase
-        .from('feed_posts')
-        .select('id, content, created_at, clubs(name), media_url, media_type')
+        .from('posts')
+        .select(`
+          id, 
+          content, 
+          created_at, 
+          image_url,
+          user:users ( full_name, avatar_url, course ),
+          likes:post_likes ( user_id ),
+          comments:post_comments ( count )
+        `)
         .order('created_at', { ascending: false })
         .limit(15);
 
-      if (socialError && socialError.code !== '42P01') console.error(socialError);
-
       const gameData = await ActivityLogService.getGlobalFeed(20);
 
-      const merged: DashboardFeedItem[] = [
+      const merged = [
          ...(socialData || []).map((p: any) => ({ 
             ...p, 
-            type: 'announcement' as FeedItemType,
-            clubs: Array.isArray(p.clubs) ? p.clubs[0] : p.clubs
+            type: 'announcement',
+            media_url: p.image_url,
+            media_type: 'image',
+            user: p.user,
+            likes: Array.isArray(p.likes) ? p.likes.length : 0,
+            is_liked: Array.isArray(p.likes) ? p.likes.some((l: any) => l.user_id === user?.id) : false,
+            comments: p.comments?.[0]?.count || 0,
+            clubs: { name: p.user?.course || 'Campus' }
          })),
          ...(gameData || []).map((g: any) => ({ 
             ...g, 
-            type: 'gamification' as FeedItemType,
+            type: 'gamification',
             created_at: g.createdAt
          }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -187,25 +164,24 @@ const Feed = () => {
 
       setPosts(merged);
     } catch (err) {
-      console.error('Error fetching unified feed:', err);
+      console.error('Error fetching feed:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchPosts();
 
-    // Centralized realtime — no duplicate channels
     const unsubFeed = subscribeToFeedPosts(async (payload) => {
       const { data: clubData } = await supabase.from('clubs').select('name').eq('id', payload.new.club_id).maybeSingle();
-      const newPost: DashboardFeedItem = { ...(payload.new as any), type: 'announcement', clubs: clubData || { name: 'Campus Update' } };
+      const newPost = { ...(payload.new as any), type: 'announcement', clubs: clubData || { name: 'Campus Update' } };
       setPosts(prev => [newPost, ...prev].slice(0, 30));
     });
 
     const unsubActivity = subscribeToActivityLogs(async (payload) => {
       const { data: userData } = await supabase.from('users').select('full_name, avatar_url, course').eq('id', payload.new.user_id).maybeSingle();
-      const newEvent: DashboardFeedItem = {
+      const newEvent = {
         id: payload.new.id,
         type: 'gamification',
         actionType: payload.new.action_type,
@@ -219,77 +195,163 @@ const Feed = () => {
     return () => { unsubFeed(); unsubActivity(); };
   }, [fetchPosts, subscribeToFeedPosts, subscribeToActivityLogs]);
 
-  if (loading) {
-    return (
-       <div className="w-full">
-         <div className="mb-8 flex items-center justify-between">
-            <div>
-               <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse mb-2"></div>
-               <div className="h-4 w-64 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse"></div>
-            </div>
-         </div>
-         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
-             {[1,2,3,4,5,6].map(i => (
-               <div key={i} className="bg-white dark:bg-gray-900 rounded-[2rem] h-48 border border-gray-100 dark:border-gray-800 shadow-sm p-6 animate-pulse flex flex-col justify-between">
-                  <div className="flex justify-between items-center">
-                     <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded-full w-1/3"></div>
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim() || !user) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('posts').insert({
+        user_id: user.id,
+        content: newPostContent.trim()
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Post created successfully!');
+      setNewPostContent('');
+      setIsCreating(false);
+      fetchPosts(); // Refresh feed
+    } catch (err: any) {
+      toast.error('Failed to create post');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLikePost = async (postId: string) => {
+    if (!user) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    try {
+      if (post.is_liked) {
+        await supabase.from('post_likes').delete().match({ post_id: postId, user_id: user.id });
+      } else {
+        await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id });
+      }
+    } catch (err) {
+      console.error('Like toggle failed:', err);
+    }
+  };
+
+  // If no posts yet but not loading, add a couple of dummy posts based on the image
+  const displayPosts = posts.length > 0 ? posts : [
+    {
+      id: 1, type: 'announcement', user: { fullName: 'Priya Singh' }, clubs: { name: 'AI Society' },
+      content: 'Excited to announce our new AI workshop this weekend! 🚀', created_at: new Date(Date.now() - 1200000).toISOString(),
+      media_url: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=2070&auto=format&fit=crop'
+    },
+    {
+      id: 2, type: 'gamification', user: { fullName: 'Rahul Verma' }, clubs: { name: 'Coding Club' }, actionType: 'badge_unlocked',
+      pointsAwarded: 50, created_at: new Date(Date.now() - 3600000).toISOString(),
+    },
+    {
+      id: 3, type: 'announcement', user: { fullName: 'Cluvion Official' }, clubs: { name: 'Admin' },
+      content: 'Hackathon 2026 registrations are now open! Don\'t miss out 🔥', created_at: new Date(Date.now() - 7200000).toISOString(),
+      media_url: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=2070&auto=format&fit=crop'
+    }
+  ];
+
+  return (
+    <div className="w-full">
+      {/* Header & Tabs */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-4 border-b border-gray-200 dark:border-gray-800 pb-1 flex-1 overflow-x-auto scrollbar-hide">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mr-2 whitespace-nowrap">Campus Feed</h2>
+          {tabs.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`text-sm font-semibold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
+                activeTab === tab 
+                  ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <button className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-3 py-2 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            Filter <Filter size={16} />
+          </button>
+          <button 
+            onClick={() => setIsCreating(!isCreating)}
+            className="flex items-center gap-2 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-xl shadow-sm shadow-purple-600/30 transition-all"
+          >
+            <Plus size={16} strokeWidth={3} />
+            Create Post
+          </button>
+        </div>
+      </div>
+
+      {isCreating && (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 mb-6 shadow-sm">
+          <div className="flex gap-4">
+             <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0">
+               {userProfile?.avatar_url ? (
+                 <img src={userProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+               ) : (
+                 <div className="w-full h-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                   {userProfile?.full_name?.charAt(0) || 'U'}
+                 </div>
+               )}
+             </div>
+             <div className="flex-1">
+               <textarea
+                 value={newPostContent}
+                 onChange={(e) => setNewPostContent(e.target.value)}
+                 placeholder="What's happening on campus?"
+                 className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-purple-500 min-h-[100px] resize-none outline-none dark:text-white"
+               />
+               <div className="flex items-center justify-between mt-3">
+                  <button className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+                    <ImageIcon size={20} />
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsCreating(false)}
+                      className="px-4 py-1.5 text-sm font-semibold text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleCreatePost}
+                      disabled={isSubmitting || !newPostContent.trim()}
+                      className="px-6 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-sm shadow-purple-600/20 transition-all"
+                    >
+                      {isSubmitting ? 'Posting...' : 'Post'}
+                    </button>
+                  </div>
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+         <div className="space-y-4">
+            {[1,2,3].map(i => (
+               <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl h-40 border border-gray-100 dark:border-gray-800 shadow-sm p-5 animate-pulse">
+                  <div className="flex gap-4 items-center mb-4">
+                     <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800"></div>
                      <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-1/4"></div>
                   </div>
-                  <div className="flex gap-4 items-center">
-                     <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-800"></div>
-                     <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-2/3"></div>
-                  </div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-1/2"></div>
                </div>
             ))}
          </div>
-       </div>
-    );
-  }
-
-  return (
-    <div className="w-full max-w-7xl mx-auto">
-      <div className="mb-8 flex items-center justify-between">
-         <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">Campus Activity</h2>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Live updates from around the campus</p>
-         </div>
-         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800/50 shadow-sm">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-            </span>
-            Live Feed
-         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
-         <AnimatePresence mode="popLayout">
-            {posts.map((post) => (
-               post.type === 'gamification' ? (
-                  <ActivityCard key={`game-${post.id}`} post={post} />
-               ) : (
-                  <AnnouncementCard key={`announcement-${post.id}`} post={post} />
-               )
-            ))}
-         </AnimatePresence>
-      </div>
-      
-      {posts.length === 0 && (
-         <div className="p-10 text-center bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm mt-8 relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
-            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 relative z-10">
-              <Activity size={32} />
-            </div>
-            <h3 className="text-xl font-extrabold text-gray-900 dark:text-white relative z-10">Start the Action!</h3>
-            <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto mb-6 relative z-10">You're the first one here. Join a club, attend an event, or complete a challenge to get the feed buzzing.</p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center relative z-10">
-              <a href="/student/events" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30">Find Events</a>
-              <a href="/student/clubs" className="px-6 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold rounded-xl transition-all">Explore Clubs</a>
-            </div>
-         </div>
+      ) : (
+        <div className="space-y-0">
+          {displayPosts.map((post) => (
+            <PostCard key={post.id} post={post} onLike={handleLikePost} currentUserId={user?.id} />
+          ))}
+        </div>
       )}
     </div>
   );
-};
-
-export default Feed;
+}

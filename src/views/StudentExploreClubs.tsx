@@ -1,202 +1,293 @@
-// @ts-nocheck
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { Search, Code, Cpu, Camera, Bot, Lightbulb, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Users, Plus, ArrowRight, Search } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const StudentExploreClubs = () => {
+export default function StudentExploreClubs() {
   const { user } = useAuth();
-  const [clubs, setClubs] = useState([]);
-  const [myClubIds, setMyClubIds] = useState(new Set());
+  const [clubs, setClubs] = useState<any[]>([]);
+  const [myClubIds, setMyClubIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('Discover');
+  
+  // Application Modal State
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [applyingToClub, setApplyingToClub] = useState<any>(null);
+  const [applicationMessage, setApplicationMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingClubIds, setPendingClubIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchClubs = async () => {
-      setLoading(true);
-
+    const fetchData = async () => {
       try {
-        const { data: allClubs, error: clubsError } = await supabase
-          .from('clubs')
-          .select('*')
-          .order('name');
-          
+        const { data: clubsData, error: clubsError } = await supabase.from('clubs').select('*');
         if (clubsError) throw clubsError;
+        setClubs(clubsData);
 
-        // Fetch user memberships to know which ones they are already in
-        const { data: userMemberships, error: memError } = await supabase
-          .from('memberships')
-          .select('club_id')
-          .eq('user_id', user.id);
-
-        if (memError) throw memError;
-
-        const joinedIds = new Set(userMemberships.map(m => m.club_id));
-        setMyClubIds(joinedIds);
-        setClubs(allClubs || []);
+        if (user) {
+          const { data: myData } = await supabase.from('club_members').select('club_id').eq('user_id', user.id);
+          if (myData) setMyClubIds(new Set(myData.map(row => row.club_id)));
+          
+          const { data: pendingData } = await supabase.from('club_recruitment').select('club_id').eq('student_id', user.id).eq('status', 'pending');
+          if (pendingData) setPendingClubIds(new Set(pendingData.map(row => row.club_id)));
+        }
       } catch (err) {
-        console.error('Error fetching explore clubs', err);
-        toast.error('Failed to load clubs.');
+        console.error('Error fetching clubs', err);
       } finally {
         setLoading(false);
       }
     };
+    fetchData();
 
-    fetchClubs();
+    const channel = supabase
+      .channel('public:clubs')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clubs' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setClubs((prev: any) => [payload.new, ...prev]);
+          } else if (payload.eventType === 'DELETE') {
+            setClubs((prev: any) => prev.filter((c: any) => c.id !== payload.old.id));
+          } else if (payload.eventType === 'UPDATE') {
+            setClubs((prev: any) => prev.map((c: any) => c.id === payload.new.id ? payload.new : c));
+          }
+        }
+      )
+      .subscribe();
+
+    const membersChannel = supabase
+      .channel('public:club_members')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'club_members' },
+        () => fetchData()
+      )
+      .subscribe();
+
+    const recruitmentChannel = supabase
+      .channel('public:club_recruitment')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'club_recruitment', filter: `student_id=eq.${user?.id}` },
+        () => fetchData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(membersChannel);
+      supabase.removeChannel(recruitmentChannel);
+    };
   }, [user]);
 
-  const handleJoinClub = async (club) => {
-    try {
-      const { error } = await supabase
-        .from('memberships')
-        .insert({ user_id: user.id, club_id: club.id, role: 'member' });
-        
-      if (error) {
-        if (error.code === '23505') toast.error('You are already a member!');
-        else throw error;
-        return;
-      }
-      
-      // Award points for joining
-      await supabase.from('activity_logs').insert({
-         user_id: user.id,
-         action_type: 'joined_club',
-         points_awarded: 10
-      });
+  const handleOpenApplyModal = (club: any) => {
+    if (!user) return toast.error('Please log in first.');
+    setApplyingToClub(club);
+    setApplicationMessage('');
+    setIsApplyModalOpen(true);
+  };
 
-      setMyClubIds(prev => new Set(prev).add(club.id));
-      toast.success(`Successfully joined ${club.name}!`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not join the club. Try again later.');
+  const submitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !applyingToClub) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('club_recruitment').insert({ 
+        club_id: applyingToClub.id, 
+        student_id: user.id,
+        message: applicationMessage
+      });
+      
+      if (error) throw error;
+      
+      setPendingClubIds(prev => new Set([...prev, applyingToClub.id]));
+      toast.success(`Application sent to ${applyingToClub.name}!`);
+      setIsApplyModalOpen(false);
+    } catch (error) {
+      toast.error('Could not submit application.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const filteredClubs = useMemo(() => {
-    return clubs.filter(club => 
-      club.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      club.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [clubs, searchQuery]);
+  // Mock data for UI showcase if DB is empty
+  const displayClubs = clubs.length > 0 ? clubs : [
+    { id: '1', name: 'Coding Club', description: 'Build. Code. Innovate.', members: '1.2K', icon: Code, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { id: '2', name: 'AI Society', description: 'Explore. Learn. Build.', members: '980', icon: Cpu, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { id: '3', name: 'Photography Club', description: 'Capture. Create. Inspire.', members: '760', icon: Camera, color: 'text-orange-500', bg: 'bg-orange-100' },
+    { id: '4', name: 'Robotics Club', description: '', members: '890', icon: Bot, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { id: '5', name: 'Entrepreneurship Cell', description: '', members: '1.1K', icon: Lightbulb, color: 'text-yellow-600', bg: 'bg-yellow-100' },
+  ];
 
-  const getCategoryTag = (name) => {
-    const n = name?.toLowerCase() || '';
-    if (n.includes('tech') || n.includes('code') || n.includes('hack') || n.includes('compute')) return 'Tech & Dev';
-    if (n.includes('sport') || n.includes('game') || n.includes('athletic')) return 'Sports';
-    if (n.includes('art') || n.includes('design') || n.includes('music') || n.includes('creat')) return 'Arts';
-    if (n.includes('business') || n.includes('finance') || n.includes('market')) return 'Business';
-    if (n.includes('science') || n.includes('math') || n.includes('engineer')) return 'STEM';
-    return 'Community';
+  const filteredClubs = useMemo(() => {
+    return displayClubs.filter(club => 
+      club.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [displayClubs, searchQuery]);
+
+  const recommended = filteredClubs.slice(0, 3);
+  const popular = filteredClubs.slice(3);
+
+  const ClubRow = ({ club, isLarge = false }: { club: any, isLarge?: boolean }) => {
+    const isMember = myClubIds.has(club.id);
+    const isPending = pendingClubIds.has(club.id);
+    const IconComponent = club.icon || Users;
+
+    return (
+      <div className={`bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-4 ${isLarge ? 'mb-4' : 'mb-3'}`}>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 ${club.bg || 'bg-purple-50'} ${club.color || 'text-purple-600'}`}>
+            <IconComponent size={24} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-gray-900 dark:text-white text-base truncate">{club.name}</h3>
+            <p className="text-xs text-gray-500 mb-0.5">{club.members || '0'} Members</p>
+            {isLarge && club.description && (
+              <p className="text-xs text-gray-400 truncate">{club.description}</p>
+            )}
+          </div>
+        </div>
+        <button 
+          onClick={() => (!isMember && !isPending) && handleOpenApplyModal(club)}
+          disabled={isMember || isPending}
+          className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            isMember 
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : isPending
+              ? 'bg-amber-100 text-amber-700 cursor-not-allowed border border-amber-200'
+              : 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/30'
+          }`}
+        >
+          {isMember ? 'Joined' : isPending ? 'Pending' : 'Apply'}
+        </button>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 dark:bg-indigo-900/10 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
+    <div className="w-full">
+      {/* Mobile Header elements */}
+      <div className="flex items-center justify-between md:hidden mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Clubs</h1>
+        <Search size={22} className="text-gray-900 dark:text-white" />
+      </div>
+
+      <div className="hidden md:flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100 mb-2">Explore Clubs</h1>
-          <p className="text-gray-500 dark:text-gray-400 max-w-lg leading-relaxed">Discover and join campus organizations to level up your experience and gain achievement points.</p>
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">Clubs</h2>
         </div>
-        <div className="relative w-full md:w-96">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-            <Search size={20} />
-          </div>
+        <div className="relative w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            placeholder="Search clubs by name or description..."
+            placeholder="Search clubs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3.5 bg-gray-50/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl focus:bg-white dark:focus:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all placeholder-gray-400 dark:placeholder-gray-500 shadow-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm outline-none focus:border-purple-300"
           />
         </div>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3,4,5,6].map(i => (
-             <div key={i} className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 h-[280px] animate-pulse shadow-sm">
-                <div className="w-14 h-14 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-6"></div>
-                <div className="w-3/4 h-6 bg-gray-100 dark:bg-gray-800 rounded mb-4"></div>
-                <div className="w-full h-4 bg-gray-50 dark:bg-gray-800/50 rounded mb-2"></div>
-                <div className="w-5/6 h-4 bg-gray-50 dark:bg-gray-800/50 rounded"></div>
-             </div>
-          ))}
-        </div>
-      ) : filteredClubs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClubs.map((club, index) => {
-            const isMember = myClubIds.has(club.id);
-            return (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                key={club.id} 
-                className="bg-white dark:bg-gray-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col h-full hover:shadow-2xl dark:hover:shadow-indigo-900/20 hover:-translate-y-2 hover:border-indigo-100 dark:hover:border-indigo-800 transition-all duration-300 group relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-bl-full -z-10 opacity-70 group-hover:scale-125 transition-transform duration-500"></div>
-                
-                {/* Decorative Category Tag */}
-                <div className="absolute top-5 right-5">
-                  <span className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-indigo-600 dark:text-indigo-400 text-xs font-bold px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800 shadow-sm">
-                    {getCategoryTag(club.name)}
-                  </span>
-                </div>
-                
-                <div className="flex-1 z-10 mt-2">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-6 shadow-sm border border-white dark:border-gray-700 group-hover:rotate-6 transition-transform duration-300 group-hover:from-indigo-100 group-hover:to-purple-100 dark:group-hover:from-indigo-800/50 dark:group-hover:to-purple-800/50">
-                     <Users size={28} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{club.name}</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                    {club.description || 'Join this exciting community club. We are looking for passionate new members to participate in our upcoming events!'}
-                  </p>
-                </div>
-                
-                <button 
-                  onClick={() => !isMember && handleJoinClub(club)}
-                  disabled={isMember}
-                  className={`w-full py-3.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all z-10 ${
-                    isMember 
-                      ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 active:scale-95'
-                  }`}
-                >
-                  {isMember ? 'Membership Active' : (
-                    <>
-                      Join Community <ArrowRight size={18} />
-                    </>
-                  )}
-                </button>
-              </motion.div>
-            );
-          })}
-        </div>
+      {/* Segmented Control / Tabs */}
+      <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-6">
+        <button 
+          onClick={() => setActiveTab('Discover')}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'Discover' ? 'bg-white dark:bg-gray-700 shadow text-purple-600 dark:text-purple-400' : 'text-gray-500'}`}
+        >
+          Discover
+        </button>
+        <button 
+          onClick={() => setActiveTab('My Clubs')}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'My Clubs' ? 'bg-white dark:bg-gray-700 shadow text-purple-600 dark:text-purple-400' : 'text-gray-500'}`}
+        >
+          My Clubs
+        </button>
+      </div>
+
+      {activeTab === 'Discover' ? (
+        <>
+          {recommended.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Recommended for you</h3>
+                <button className="text-purple-600 dark:text-purple-400 text-xs font-bold">See all</button>
+              </div>
+              <div className="space-y-0">
+                {recommended.map(club => <ClubRow key={club.id} club={club} isLarge={true} />)}
+              </div>
+            </div>
+          )}
+
+          {popular.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Popular Clubs</h3>
+                <button className="text-purple-600 dark:text-purple-400 text-xs font-bold">See all</button>
+              </div>
+              <div className="space-y-0">
+                {popular.map(club => <ClubRow key={club.id} club={club} isLarge={false} />)}
+              </div>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="p-10 text-center bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden mt-8">
-             <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
-             <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 relative z-10">
-               <Users size={32} />
-             </div>
-             <h3 className="text-xl font-extrabold text-gray-900 dark:text-white relative z-10">No Clubs Found</h3>
-             <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto mb-6 relative z-10">
-               {searchQuery ? "We couldn't find any clubs matching your search. Try a different term!" : "There are currently no active clubs to join."}
-             </p>
-             {searchQuery && (
-               <button onClick={() => setSearchQuery('')} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/30 relative z-10">
-                 Clear Search
-               </button>
-             )}
+        <div className="p-8 text-center text-gray-500">
+          You haven't joined any clubs yet. Check out the Discover tab!
         </div>
       )}
+
+      {/* Application Modal */}
+      <AnimatePresence>
+        {isApplyModalOpen && applyingToClub && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-gray-800 p-8"
+            >
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Apply to {applyingToClub.name}</h2>
+              <p className="text-sm text-gray-500 mb-6">Write a short message to the Club Head explaining why you want to join and what you can contribute.</p>
+              
+              <form onSubmit={submitApplication}>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="I am interested in joining because..."
+                  value={applicationMessage}
+                  onChange={(e) => setApplicationMessage(e.target.value)}
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 mb-6 resize-none"
+                />
+                
+                <div className="flex gap-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsApplyModalOpen(false)}
+                    className="flex-1 py-3 text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 hover:bg-purple-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Sending...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
-
-export default StudentExploreClubs;
+}

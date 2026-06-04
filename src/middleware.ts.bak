@@ -1,0 +1,136 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+// In-memory edge-runtime cache for role lookups (per-isolate, ~5 min TTL).
+// This avoids hitting Supabase on every single navigation.
+const roleCache = new Map<string, { role: string; ts: number }>()
+const ROLE_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function getCachedRole(userId: string): string | null {
+  const entry = roleCache.get(userId)
+  if (!entry) return null
+  if (Date.now() - entry.ts > ROLE_CACHE_TTL) {
+    roleCache.delete(userId)
+    return null
+  }
+  return entry.role
+}
+
+function setCachedRole(userId: string, role: string) {
+  roleCache.set(userId, { role, ts: Date.now() })
+}
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+
+  const pathname = request.nextUrl.pathname
+
+  // Allow public routes — fast exit, no DB call
+  if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/welcome') || pathname.startsWith('/unauthorized')) {
+    if (session && (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/welcome'))) {
+      // Fetch user role to redirect to correct dashboard
+      const role = await resolveRole(supabase, session.user.id)
+      return NextResponse.redirect(new URL(roleToPath(role), request.url))
+    }
+    return response
+  }
+
+  // Require auth for protected routes
+  if (!session) {
+    return NextResponse.redirect(new URL('/welcome', request.url))
+  }
+
+  // Path-based Role protection (with cache — avoids DB round-trip on every click)
+  const role = await resolveRole(supabase, session.user.id)
+
+  const rolePaths: Record<string, string[]> = {
+    super_admin: ['/admin', '/student', '/faculty', '/coordinator', '/head', '/placement', '/leaderboard', '/settings'],
+    college_admin: ['/admin', '/student', '/faculty', '/coordinator', '/head', '/placement', '/leaderboard', '/settings'],
+    admin: ['/admin', '/student', '/faculty', '/coordinator', '/head', '/placement', '/leaderboard', '/settings'],
+    faculty: ['/faculty', '/leaderboard', '/settings'],
+    club_coordinator: ['/coordinator', '/student', '/leaderboard', '/settings'],
+    club_head: ['/head', '/student', '/leaderboard', '/settings'],
+    placement_officer: ['/placement', '/leaderboard', '/settings'],
+    student: ['/student', '/leaderboard', '/settings'],
+  }
+
+  const allowedPaths = rolePaths[role as keyof typeof rolePaths] || []
+  const isAllowed = allowedPaths.some(allowedPath => pathname.startsWith(allowedPath))
+
+  if (!isAllowed) {
+    return NextResponse.redirect(new URL('/unauthorized', request.url))
+  }
+
+  return response
+}
+
+// --- Helpers ---
+
+async function resolveRole(supabase: any, userId: string): Promise<string> {
+  // Check cache first
+  const cached = getCachedRole(userId)
+  if (cached) return cached
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  if (error) {
+    console.error('Middleware fetch user role error:', error)
+  }
+
+  const role = data?.role || 'student'
+  setCachedRole(userId, role)
+  return role
+}
+
+function roleToPath(role: string): string {
+  if (role === 'super_admin' || role === 'college_admin' || role === 'admin') return '/admin'
+  if (role === 'faculty') return '/faculty'
+  if (role === 'club_head') return '/head'
+  if (role === 'club_coordinator') return '/coordinator'
+  if (role === 'placement_officer') return '/placement'
+  return '/student'
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Only match actual page routes — skip all static assets, images, API routes,
+     * and Next.js internals. This is the single biggest perf win: middleware
+     * no longer runs on CSS/JS/font/image requests.
+     */
+    '/((?!_next/static|_next/image|_next/webpack|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|map)$).*)',
+  ],
+}
