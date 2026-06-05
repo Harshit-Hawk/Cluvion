@@ -29,7 +29,12 @@ function getSupabaseClient(): SupabaseClient {
 
   // On the client, return the cached singleton or create it once
   if (!globalThis[GLOBAL_KEY]) {
-    globalThis[GLOBAL_KEY] = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    // Guard against missing env vars (e.g. during local dev or misconfigured deploys)
+    if (!supabaseUrl || !supabaseAnonKey) {
+      globalThis[GLOBAL_KEY] = createClient('https://placeholder.supabase.co', 'placeholder-key') as unknown as SupabaseClient;
+    } else {
+      globalThis[GLOBAL_KEY] = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    }
   }
 
   return globalThis[GLOBAL_KEY]!;
