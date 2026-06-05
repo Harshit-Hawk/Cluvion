@@ -1,6 +1,6 @@
 'use client';
 
-import Landing from '../views/Landing';
+import Landing from '../views/public/Landing';
 
 export default function LandingPage() {
   return <Landing />;

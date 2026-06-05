@@ -1,5 +1,5 @@
 'use client';
-import ClubHeadAnalytics from '../../../../views/ClubHeadAnalytics';
+import ClubHeadAnalytics from '../../../../views/club-head/ClubHeadAnalytics';
 
 export default function HeadAnalyticsPage() {
   return <ClubHeadAnalytics />;

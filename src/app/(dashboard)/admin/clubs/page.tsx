@@ -1,3 +1,3 @@
 'use client';
-import AdminClubs from '../../../../views/AdminClubs';
+import AdminClubs from '../../../../views/admin/AdminClubs';
 export default function AdminClubsPage() { return <AdminClubs />; }

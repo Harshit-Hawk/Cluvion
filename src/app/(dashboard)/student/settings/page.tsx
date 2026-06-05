@@ -1,4 +1,4 @@
-import StudentSettings from '../../../../views/StudentSettings';
+import StudentSettings from '../../../../views/student/StudentSettings';
 
 export const metadata = {
   title: 'Settings | Cluvion ERP',

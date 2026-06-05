@@ -1,4 +1,4 @@
-import StudentClassroom from '../../../../views/StudentClassroom';
+import StudentClassroom from '../../../../views/student/StudentClassroom';
 
 export const metadata = {
   title: 'Classroom | Cluvion ERP',
