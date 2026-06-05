@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -12,15 +11,15 @@ import { adminUpdateUserPassword } from '../app/actions/admin';
 
 const AdminUsers = () => {
   const { user } = useAuth();
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
-  const [clubs, setClubs] = useState([]);
+  const [clubs, setClubs] = useState<any[]>([]);
 
   // Edit User State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   
   // Password Reset State
@@ -35,7 +34,7 @@ const AdminUsers = () => {
 
   const fetchClubsList = async () => {
     try {
-      const { data, error } = await supabase.from('clubs').select('id, name').order('name');
+      const { data, error }: any = await supabase.from('clubs').select('id, name').order('name');
       if (!error && data) {
         setClubs(data);
       }
@@ -47,7 +46,7 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error }: any = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
@@ -61,7 +60,7 @@ const AdminUsers = () => {
     }
   };
 
-  const handleUpdateRole = async (e) => {
+  const handleUpdateRole = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingUser) return;
     
@@ -72,7 +71,7 @@ const AdminUsers = () => {
 
     try {
       setIsUpdating(true);
-      const { error } = await supabase
+      const { error }: any = await supabase
         .from('users')
         .update({ role: editingUser.newRole })
         .eq('id', editingUser.id);
@@ -80,8 +79,7 @@ const AdminUsers = () => {
       
       // If club_head, add them to club_members
       if (editingUser.newRole === 'club_head' && editingUser.selectedClubId) {
-        // Upsert to handle if they are already in the club or we just need to update their role
-        const { error: clubError } = await supabase
+        const { error: clubError }: any = await supabase
           .from('club_members')
           .upsert({
             club_id: editingUser.selectedClubId,
@@ -101,7 +99,7 @@ const AdminUsers = () => {
       
       setUsers(users.map(u => u.id === editingUser.id ? { ...u, role: editingUser.newRole } : u));
       setIsEditModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error);
       toast.error(error.message || 'Failed to update user role');
     } finally {
@@ -109,26 +107,26 @@ const AdminUsers = () => {
     }
   };
 
-  const handleDeleteUser = async (userId, userName) => {
+  const handleDeleteUser = async (userId: string, userName: string) => {
     if (!window.confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
       return;
     }
 
     try {
-      const { error } = await supabase
+      const { error }: any = await supabase
         .from('users')
         .delete()
         .eq('id', userId);
       if (error) throw error;
       toast.success('User deleted successfully');
       setUsers(users.filter(u => u.id !== userId));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       toast.error(error.message || 'Failed to delete user');
     }
   };
 
-  const handleUpdatePassword = async (e) => {
+  const handleUpdatePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -149,7 +147,7 @@ const AdminUsers = () => {
         // Fallback: If server action fails (likely missing Service Role Key), suggest email reset
         console.warn('Server action failed, falling back to email reset:', result.error);
         
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(passwordData.email);
+        const { error: resetError }: any = await supabase.auth.resetPasswordForEmail(passwordData.email);
         if (resetError) throw resetError;
         
         toast.info('Direct overwrite requires Service Role Key. Reset email sent instead.');
@@ -159,7 +157,7 @@ const AdminUsers = () => {
       
       setIsPasswordModalOpen(false);
       setPasswordData({ userId: '', email: '', newPassword: '', confirmPassword: '' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating password:', error);
       toast.error(error.message || 'Failed to update password');
     } finally {
@@ -167,7 +165,7 @@ const AdminUsers = () => {
     }
   };
 
-  const getRoleBadgeColor = (role) => {
+  const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800/50';
       case 'club_head': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50';
@@ -176,8 +174,8 @@ const AdminUsers = () => {
     }
   };
 
-  const formatRole = (role) => {
-    return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  const formatRole = (role: string) => {
+    return role.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
   const filteredUsers = users.filter(u => {
@@ -208,14 +206,14 @@ const AdminUsers = () => {
               placeholder="Search by name or email..."
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex gap-2">
              <select
                 className="block w-full md:w-48 pl-3 pr-10 py-2 text-base border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                 value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterRole(e.target.value)}
              >
                 <option value="all">All Roles</option>
                 <option value="student">Student</option>
@@ -336,7 +334,7 @@ const AdminUsers = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div className="flex flex-col items-center justify-center">
                        <Users className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
                        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">No users found</p>
@@ -385,7 +383,7 @@ const AdminUsers = () => {
                     <select
                       className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none"
                       value={editingUser.newRole}
-                      onChange={(e) => setEditingUser({ ...editingUser, newRole: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditingUser({ ...editingUser, newRole: e.target.value })}
                       disabled={isUpdating}
                     >
                       <option value="student">Student</option>
@@ -399,7 +397,7 @@ const AdminUsers = () => {
                         <select
                           className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none"
                           value={editingUser.selectedClubId || ''}
-                          onChange={(e) => setEditingUser({ ...editingUser, selectedClubId: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditingUser({ ...editingUser, selectedClubId: e.target.value })}
                           disabled={isUpdating}
                         >
                           <option value="" disabled>-- Choose a Club --</option>
@@ -480,7 +478,7 @@ const AdminUsers = () => {
                       required
                       placeholder="Minimum 6 characters"
                       value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({...passwordData, newPassword: e.target.value})}
                       className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-mono"
                     />
                   </div>
@@ -491,7 +489,7 @@ const AdminUsers = () => {
                       required
                       placeholder="Repeat new password"
                       value={passwordData.confirmPassword}
-                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                       className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-mono"
                     />
                   </div>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -19,20 +18,20 @@ import {
 const ClubHeadEvents = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState([]);
-  const [managedClubId, setManagedClubId] = useState(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [managedClubId, setManagedClubId] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [scanModalOpen, setScanModalOpen] = useState(false);
-  const [scanningEventId, setScanningEventId] = useState(null);
+  const [scanningEventId, setScanningEventId] = useState<any>(null);
   const [isProcessingScan, setIsProcessingScan] = useState(false);
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [attendees, setAttendees] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [attendees, setAttendees] = useState<any[]>([]);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
 
   useEffect(() => {
@@ -43,17 +42,17 @@ const ClubHeadEvents = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const { data: memberData } = await supabase
+      const { data: memberData }: any = await supabase
         .from('memberships')
         .select('club_id')
-        .eq('user_id', user.id)
+        .eq('user_id', user!.id)
         .eq('role', 'head')
         .single();
 
       if (!memberData) return;
       setManagedClubId(memberData.club_id);
 
-      const { data: eventsData, error } = await supabase
+      const { data: eventsData, error }: any = await supabase
         .from('events')
         .select('*')
         .eq('club_id', memberData.club_id)
@@ -70,7 +69,7 @@ const ClubHeadEvents = () => {
 
 
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: any) => {
     switch (status) {
       case 'active': return { label: 'Active', icon: CheckCircle, class: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
       case 'pending': return { label: 'In Review', icon: Clock, class: 'bg-amber-50 text-amber-600 border-amber-100' };
@@ -79,7 +78,7 @@ const ClubHeadEvents = () => {
     }
   };
 
-  const handleScanSuccess = async (decodedText) => {
+  const handleScanSuccess = async (decodedText: any) => {
     if (isProcessingScan || !scanningEventId) return;
     setIsProcessingScan(true);
     try {
@@ -88,7 +87,7 @@ const ClubHeadEvents = () => {
         toast.error('Invalid QR Code');
         return;
       }
-      const result = await AttendanceService.markAttendance(scanningEventId, payload.userId, user.id);
+      const result = await AttendanceService.markAttendance(scanningEventId, payload.userId, user!.id);
       if (result.success) toast.success(result.message);
       else toast.warning(result.message);
     } catch (error) {
@@ -98,12 +97,12 @@ const ClubHeadEvents = () => {
     }
   };
 
-  const openDetails = async (evt) => {
+  const openDetails = async (evt: any) => {
     setSelectedEvent(evt);
     setDetailsModalOpen(true);
     setLoadingAttendees(true);
     try {
-      const { data, error } = await supabase
+      const { data, error }: any = await supabase
         .from('event_attendance')
         .select(`
           status,
@@ -145,7 +144,7 @@ const ClubHeadEvents = () => {
           type="text"
           placeholder="Filter by event title..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
           className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
         />
       </div>
@@ -153,7 +152,7 @@ const ClubHeadEvents = () => {
       {/* Events Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <AnimatePresence mode="popLayout">
-          {filteredEvents.map((evt) => {
+          {filteredEvents.map((evt: any) => {
             const status = getStatusBadge(evt.status);
             const isPastEvent = isPast(new Date(evt.event_date));
             
@@ -303,7 +302,7 @@ const ClubHeadEvents = () => {
                   </div>
                   <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
                     <p className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest mb-1">Checked In</p>
-                    <p className="text-3xl font-black text-emerald-600">{attendees.filter(a => a.status === 'attended').length}</p>
+                    <p className="text-3xl font-black text-emerald-600">{attendees.filter((a: any) => a.status === 'attended').length}</p>
                   </div>
                 </div>
 
@@ -314,7 +313,7 @@ const ClubHeadEvents = () => {
                   <div className="text-center py-8 text-gray-500">No one has registered yet.</div>
                 ) : (
                   <div className="space-y-2">
-                    {attendees.map((attendee, idx) => (
+                    {attendees.map((attendee: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">

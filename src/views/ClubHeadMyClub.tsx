@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -11,9 +10,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 const ClubHeadMyClub = () => {
   const { user, sessionReady } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [clubDetails, setClubDetails] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [applications, setApplications] = useState([]);
+  const [clubDetails, setClubDetails] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
@@ -27,7 +26,7 @@ const ClubHeadMyClub = () => {
 
     let cancelled = false;
 
-    const withTimeout = (promise, ms = 8000) =>
+    const withTimeout = (promise: any, ms = 8000) =>
       Promise.race([
         promise,
         new Promise((_, reject) =>
@@ -40,7 +39,7 @@ const ClubHeadMyClub = () => {
 
       try {
         // Use maybeSingle() — returns null (not error) when 0 rows found
-        const { data: memberData, error: headError } = await withTimeout(
+        const { data: memberData, error: headError }: any = await withTimeout(
           supabase
             .from('memberships')
             .select('club_id')
@@ -62,7 +61,7 @@ const ClubHeadMyClub = () => {
         const clubId = memberData.club_id;
 
         // Fetch club details + members + applications in parallel
-        const [clubRes, membersRes, appsRes] = await withTimeout(
+        const [clubRes, membersRes, appsRes]: any[] = await withTimeout(
           Promise.all([
             supabase.from('clubs').select('*').eq('id', clubId).maybeSingle(),
             supabase
@@ -115,7 +114,7 @@ const ClubHeadMyClub = () => {
 
       if (error) throw error;
       
-      setClubDetails(prev => ({ ...prev, description: editDescription }));
+      setClubDetails((prev: any) => ({ ...prev, description: editDescription }));
       setIsEditing(false);
       toast.success('Description updated successfully');
     } catch (err) {
@@ -126,7 +125,7 @@ const ClubHeadMyClub = () => {
     }
   };
 
-  const handleRemoveMember = async (membershipId, memberName) => {
+  const handleRemoveMember = async (membershipId: any, memberName: any) => {
     if (!window.confirm(`Are you sure you want to remove ${memberName} from the club?`)) return;
 
     try {
@@ -143,7 +142,7 @@ const ClubHeadMyClub = () => {
     }
   };
 
-  const handleProcessApplication = async (appId, studentId, action) => {
+  const handleProcessApplication = async (appId: any, studentId: any, action: any) => {
     try {
       const newStatus = action === 'approve' ? 'approved' : 'rejected';
       const { error } = await supabase.from('club_recruitment').update({ status: newStatus }).eq('id', appId);
@@ -173,7 +172,7 @@ const ClubHeadMyClub = () => {
     }
   };
 
-  const handlePromoteMember = async (membershipId, memberName) => {
+  const handlePromoteMember = async (membershipId: any, memberName: any) => {
     if (!window.confirm(`Promote ${memberName} to Core Team?`)) return;
     try {
       const { error } = await supabase.from('memberships').update({ role: 'core' }).eq('id', membershipId);
@@ -273,7 +272,7 @@ const ClubHeadMyClub = () => {
                   >
                     <textarea
                       value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditDescription(e.target.value)}
                       className="w-full p-2.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[100px]"
                       placeholder="Write a welcoming description for your club..."
                     />
@@ -319,7 +318,7 @@ const ClubHeadMyClub = () => {
                 <span className="text-[10px] font-bold bg-amber-200 text-amber-800 px-2.5 py-1 rounded-full">{applications.length} New</span>
               </div>
               <div className="divide-y divide-gray-50 dark:divide-gray-800 max-h-80 overflow-y-auto">
-                {applications.map(app => (
+                {applications.map((app: any) => (
                   <div key={app.id} className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-start">
                     <div>
                       <p className="font-bold text-gray-900 dark:text-white text-sm">{app.users?.full_name}</p>
@@ -357,7 +356,7 @@ const ClubHeadMyClub = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                  {members.map((member) => (
+                  {members.map((member: any) => (
                     <tr key={member.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3 w-max">
@@ -407,7 +406,7 @@ const ClubHeadMyClub = () => {
                   ))}
                   {members.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                         No members have joined your club yet.
                       </td>
                     </tr>

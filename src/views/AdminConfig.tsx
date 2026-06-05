@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState } from 'react';
@@ -120,12 +119,12 @@ const AdminConfig = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {[
-                    { key: 'attendance', label: 'Event Attendance', icon: Calendar, color: 'bg-emerald-50 text-emerald-600' },
-                    { key: 'organization', label: 'Event Organization', icon: ShieldCheck, color: 'bg-blue-50 text-blue-600' },
-                    { key: 'contribution', label: 'Club Contribution', icon: Users, color: 'bg-amber-50 text-amber-600' },
-                    { key: 'challenge_win', label: 'Challenge Victory', icon: Trophy, color: 'bg-purple-50 text-purple-600' },
-                  ].map((item) => (
+                  {([
+                    { key: 'attendance' as const, label: 'Event Attendance', icon: Calendar, color: 'bg-emerald-50 text-emerald-600' },
+                    { key: 'organization' as const, label: 'Event Organization', icon: ShieldCheck, color: 'bg-blue-50 text-blue-600' },
+                    { key: 'contribution' as const, label: 'Club Contribution', icon: Users, color: 'bg-amber-50 text-amber-600' },
+                    { key: 'challenge_win' as const, label: 'Challenge Victory', icon: Trophy, color: 'bg-purple-50 text-purple-600' },
+                  ] as const).map((item) => (
                     <div key={item.key} className="group p-6 rounded-[2rem] border border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20 hover:border-blue-100 transition-all">
                       <div className="flex items-center justify-between mb-4">
                         <div className={`p-3 rounded-2xl ${item.color}`}>
@@ -138,7 +137,7 @@ const AdminConfig = () => {
                         <input 
                           type="number"
                           value={xpConfig[item.key]}
-                          onChange={(e) => setXpConfig({...xpConfig, [item.key]: parseInt(e.target.value)})}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setXpConfig({...xpConfig, [item.key]: parseInt(e.target.value)})}
                           className="w-full px-5 py-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none font-black text-gray-900 dark:text-white transition-all text-lg"
                         />
                         <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -161,7 +160,7 @@ const AdminConfig = () => {
                         type="number" 
                         step="0.1"
                         value={xpConfig.streak_multiplier}
-                        onChange={(e) => setXpConfig({...xpConfig, streak_multiplier: parseFloat(e.target.value)})}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setXpConfig({...xpConfig, streak_multiplier: parseFloat(e.target.value)})}
                         className="w-20 px-3 py-3 bg-transparent border-none text-center font-black text-xl outline-none"
                       />
                       <span className="pr-4 text-xs font-black uppercase">Multiplier</span>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,10 +8,10 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 const AdminAnnouncements = () => {
-  const [announcements, setAnnouncements] = useState([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [newMsg, setNewMsg] = useState({
@@ -29,7 +28,7 @@ const AdminAnnouncements = () => {
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error }: any = await supabase
         .from('notifications')
         .select('*')
         .eq('type', 'announcement')
@@ -44,7 +43,7 @@ const AdminAnnouncements = () => {
     }
   };
 
-  const handleSend = async (e) => {
+  const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newMsg.title || !newMsg.message) return;
 
@@ -55,11 +54,11 @@ const AdminAnnouncements = () => {
       if (newMsg.target === 'students') query = query.eq('role', 'student');
       if (newMsg.target === 'club_heads') query = query.eq('role', 'club_head');
       
-      const { data: targetUsers, error: userError } = await query;
+      const { data: targetUsers, error: userError }: any = await query;
       if (userError) throw userError;
 
       // 2. Insert notifications for all target users
-      const notifications = targetUsers.map(u => ({
+      const notifications = targetUsers.map((u: any) => ({
         user_id: u.id,
         title: newMsg.title,
         message: newMsg.message,
@@ -67,13 +66,13 @@ const AdminAnnouncements = () => {
         is_read: false
       }));
 
-      const { error } = await supabase.from('notifications').insert(notifications);
+      const { error }: any = await supabase.from('notifications').insert(notifications);
       if (error) throw error;
 
       toast.success('Broadcast sent successfully!');
       setNewMsg({ title: '', message: '', type: 'announcement', target: 'all' });
       fetchAnnouncements();
-    } catch (err) {
+    } catch (err: any) {
       toast.error('Failed to send broadcast');
     } finally {
       setIsSending(false);
@@ -108,7 +107,7 @@ const AdminAnnouncements = () => {
                   required
                   placeholder="e.g. Campus Holiday Notice"
                   value={newMsg.title}
-                  onChange={(e) => setNewMsg({...newMsg, title: e.target.value})}
+                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMsg({...newMsg, title: e.target.value})}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
               </div>
@@ -116,11 +115,11 @@ const AdminAnnouncements = () => {
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Message Body</label>
                 <textarea 
-                  rows="4"
+                  rows={4}
                   required
                   placeholder="Tell students what's happening..."
                   value={newMsg.message}
-                  onChange={(e) => setNewMsg({...newMsg, message: e.target.value})}
+                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewMsg({...newMsg, message: e.target.value})}
                   className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
                 />
               </div>
@@ -130,7 +129,7 @@ const AdminAnnouncements = () => {
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Category</label>
                   <select 
                     value={newMsg.type}
-                    onChange={(e) => setNewMsg({...newMsg, type: e.target.value})}
+                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewMsg({...newMsg, type: e.target.value})}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold"
                   >
                     <option value="announcement">Announcement</option>
@@ -142,7 +141,7 @@ const AdminAnnouncements = () => {
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Target Group</label>
                   <select 
                     value={newMsg.target}
-                    onChange={(e) => setNewMsg({...newMsg, target: e.target.value})}
+                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewMsg({...newMsg, target: e.target.value})}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold"
                   >
                     <option value="all">Everyone</option>

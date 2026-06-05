@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -93,7 +92,7 @@ const AdminAnalytics = () => {
         <div className="flex items-center gap-3">
           <select 
             value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTimeframe(e.target.value)}
             className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="24h">Last 24 Hours</option>

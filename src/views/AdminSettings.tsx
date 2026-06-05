@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState } from 'react';
@@ -22,7 +21,7 @@ const AdminSettings = () => {
     confirm: ''
   });
 
-  const handlePasswordUpdate = async (e) => {
+  const handlePasswordUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
       toast.error('New passwords do not match');
@@ -35,13 +34,13 @@ const AdminSettings = () => {
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { error }: any = await supabase.auth.updateUser({
         password: passwords.new
       });
       if (error) throw error;
       toast.success('Password updated successfully');
       setPasswords({ current: '', new: '', confirm: '' });
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.message || 'Failed to update password');
     } finally {
       setIsSaving(false);
@@ -121,7 +120,7 @@ const AdminSettings = () => {
                       required
                       placeholder="Enter new secure password"
                       value={passwords.new}
-                      onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswords({...passwords, new: e.target.value})}
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold"
                     />
                     <button 
@@ -141,7 +140,7 @@ const AdminSettings = () => {
                     required
                     placeholder="Repeat new password"
                     value={passwords.confirm}
-                    onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswords({...passwords, confirm: e.target.value})}
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold"
                   />
                 </div>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -37,9 +36,9 @@ const ClubHeadProfile = () => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        const [userResp, clubResp] = await Promise.all([
-           supabase.from('users').select('*').eq('id', user.id).single(),
-           supabase.from('memberships').select('clubs(name)').eq('user_id', user.id).eq('role', 'head').single()
+        const [userResp, clubResp]: any[] = await Promise.all([
+           supabase.from('users').select('*').eq('id', user!.id).single(),
+           supabase.from('memberships').select('clubs(name)').eq('user_id', user!.id).eq('role', 'head').single()
         ]);
 
         if (userResp.data) {
@@ -57,14 +56,14 @@ const ClubHeadProfile = () => {
     if (user) fetchProfileData();
   }, [user]);
 
-  const handleUpdateProfile = async (e) => {
+  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     try {
       const { error } = await supabase
         .from('users')
         .update({ full_name: profileData.full_name, designation: profileData.designation })
-        .eq('id', user.id);
+        .eq('id', user!.id);
       if (error) throw error;
       updateProfile({ full_name: profileData.full_name, designation: profileData.designation });
       toast.success('Profile updated!');
@@ -75,7 +74,7 @@ const ClubHeadProfile = () => {
     }
   };
 
-  const handleUpdatePassword = async (e) => {
+  const handleUpdatePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       return toast.error('Passwords do not match');
@@ -87,7 +86,7 @@ const ClubHeadProfile = () => {
       toast.success('Password changed successfully!');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
-      toast.error(error.message);
+      toast.error((error as any).message);
     } finally {
       setSaving(false);
     }
@@ -190,7 +189,7 @@ const ClubHeadProfile = () => {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
                       <input 
                         value={profileData.full_name}
-                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, full_name: e.target.value})}
                         className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                       />
                     </div>
@@ -198,7 +197,7 @@ const ClubHeadProfile = () => {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Designation</label>
                       <input 
                         value={profileData.designation}
-                        onChange={(e) => setProfileData({...profileData, designation: e.target.value})}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({...profileData, designation: e.target.value})}
                         className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                       />
                     </div>
@@ -244,7 +243,7 @@ const ClubHeadProfile = () => {
                         <input 
                           type="password"
                           value={passwordData.newPassword}
-                          onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({...passwordData, newPassword: e.target.value})}
                           className="w-full pl-14 pr-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
                         />
                       </div>
@@ -256,7 +255,7 @@ const ClubHeadProfile = () => {
                         <input 
                           type="password"
                           value={passwordData.confirmPassword}
-                          onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                           className="w-full pl-14 pr-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
                         />
                       </div>

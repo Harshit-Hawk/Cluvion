@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -11,14 +10,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 const ClubHeadAchievements = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [achievements, setAchievements] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [managedClubId, setManagedClubId] = useState(null);
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [managedClubId, setManagedClubId] = useState<any>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [newAchievement, setNewAchievement] = useState({ title: '', points: 10, user_id: '' });
+  const [newAchievement, setNewAchievement] = useState<any>({ title: '', points: 10, user_id: '' });
 
   useEffect(() => {
     if (!user) return;
@@ -74,7 +73,7 @@ const ClubHeadAchievements = () => {
     fetchData();
   }, [user]);
 
-  const handleGrantAchievement = async (e) => {
+  const handleGrantAchievement = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!managedClubId || !newAchievement.user_id) {
        return toast.warning('Please select a member.');
@@ -82,14 +81,14 @@ const ClubHeadAchievements = () => {
 
     setIsSaving(true);
     try {
-      const { data, error } = await supabase
+      const { data, error }: any = await supabase
         .from('achievements')
         .insert({
           club_id: managedClubId,
           user_id: newAchievement.user_id,
           title: newAchievement.title,
-          points: parseInt(newAchievement.points),
-          granted_by: user.id
+          points: Number(newAchievement.points),
+          granted_by: user!.id
         })
         .select('*, users(full_name)')
         .single();
@@ -100,7 +99,7 @@ const ClubHeadAchievements = () => {
       await supabase.from('activity_logs').insert({
          user_id: newAchievement.user_id,
          action_type: 'achievement_earned',
-         points_awarded: parseInt(newAchievement.points)
+          points_awarded: Number(newAchievement.points)
       });
 
       setAchievements(prev => [data, ...prev]);
@@ -115,7 +114,7 @@ const ClubHeadAchievements = () => {
     }
   };
 
-  const handleDeleteAchievement = async (achId, achTitle) => {
+  const handleDeleteAchievement = async (achId: any, achTitle: any) => {
      if (!window.confirm(`Are you sure you want to revoke the "${achTitle}" achievement? (Points will not be automatically deducted from activity logs)`)) return;
 
      try {
@@ -197,7 +196,7 @@ const ClubHeadAchievements = () => {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {achievements.length > 0 ? (
-                achievements.map((ach) => (
+                achievements.map((ach: any) => (
                   <tr key={ach.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors group">
                     <td className="px-6 py-5 font-bold text-gray-900 dark:text-gray-100 text-base">{ach.title}</td>
                     <td className="px-6 py-5">
@@ -227,7 +226,7 @@ const ClubHeadAchievements = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     No achievements have been granted yet. Click "Grant Achievement" to reward a member.
                   </td>
                 </tr>
@@ -260,15 +259,15 @@ const ClubHeadAchievements = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Achievement Title</label>
                   <input required type="text" className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" 
                     placeholder="e.g. Best Hacker, Outstanding Leadership"
-                    value={newAchievement.title} onChange={e => setNewAchievement({...newAchievement, title: e.target.value})} />
+                    value={newAchievement.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAchievement({...newAchievement, title: e.target.value})} />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Select Member</label>
                   <select required className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    value={newAchievement.user_id} onChange={e => setNewAchievement({...newAchievement, user_id: e.target.value})}>
+                     value={newAchievement.user_id} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewAchievement({...newAchievement, user_id: e.target.value})}>
                      <option value="" disabled>-- Select a club member --</option>
-                     {members.map(m => (
+                     {members.map((m: any) => (
                         <option key={m.user_id} value={m.user_id}>{m.users?.full_name}</option>
                      ))}
                   </select>
@@ -292,7 +291,7 @@ const ClubHeadAchievements = () => {
                   <div className="mt-2 flex items-center gap-2">
                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Custom Points:</span>
                      <input type="number" min="1" max="1000" className="w-24 p-1 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md text-sm text-center" 
-                      value={newAchievement.points} onChange={e => setNewAchievement({...newAchievement, points: e.target.value})} />
+                      value={newAchievement.points} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAchievement({...newAchievement, points: e.target.value})} />
                   </div>
                 </div>
                 

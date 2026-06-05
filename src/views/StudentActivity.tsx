@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -11,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { EngagementService } from '../services/EngagementService';
 import Feed from '../components/Feed';
 
-const AnimatedCounter = ({ value }) => {
+const AnimatedCounter = ({ value }: { value: number }) => {
   const springValue = useSpring(0, {
     stiffness: 70,
     damping: 20,
@@ -27,7 +26,7 @@ const AnimatedCounter = ({ value }) => {
   return <motion.span>{displayValue}</motion.span>;
 };
 
-const ActionIcon = ({ type }) => {
+const ActionIcon = ({ type }: { type: string }) => {
    switch(type) {
       case 'event_attended':
          return <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 border-4 border-white shadow-sm z-10"><Calendar size={18} /></div>;
@@ -40,7 +39,7 @@ const ActionIcon = ({ type }) => {
    }
 };
 
-const ActionDescription = ({ type, points }) => {
+const ActionDescription = ({ type, points }: { type: string; points: number }) => {
    switch(type) {
       case 'event_attended':
          return <span>Attended a campus event <strong className="text-emerald-600">+{points} pts</strong></span>;
@@ -58,7 +57,7 @@ const ActionDescription = ({ type, points }) => {
 const StudentActivity = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [stats, setStats] = useState({ score: 0, achievements: 0, events: 0 });
   const [activeTab, setActiveTab] = useState('My Timeline');
 
@@ -75,7 +74,7 @@ const StudentActivity = () => {
         ] = await Promise.all([
           supabase.from('activity_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           EngagementService.getUserEngagement(user.id)
-        ]);
+        ] as any);
 
         if (logsError) throw logsError;
 

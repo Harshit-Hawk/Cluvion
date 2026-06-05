@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -16,7 +15,7 @@ import { DashboardContainer } from '../components/ui/DashboardLayout';
 import Link from 'next/link';
 
 /* ── Operational Stat Cards ── */
-const HealthScoreCard = ({ score, trend, loading }) => (
+const HealthScoreCard = ({ score, trend, loading }: { score: number; trend: string; loading: boolean }) => (
   <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-5 rounded-2xl text-white relative overflow-hidden shadow-md shadow-emerald-500/20 col-span-2 sm:col-span-1 flex flex-col justify-between">
     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none" />
     <div className="relative z-10 flex justify-between items-start mb-2">
@@ -39,7 +38,7 @@ const HealthScoreCard = ({ score, trend, loading }) => (
   </div>
 );
 
-const OpStatCard = ({ title, value, icon: Icon, accent, subtitle, loading, delay }) => {
+const OpStatCard = ({ title, value, icon: Icon, accent, subtitle, loading, delay }: { title: string; value: string | number; icon: React.ElementType; accent: 'blue' | 'amber' | 'rose'; subtitle?: string; loading?: boolean; delay?: number }) => {
   const styles = {
     blue:  'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800/30',
     amber: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/30',
@@ -72,9 +71,9 @@ const OpStatCard = ({ title, value, icon: Icon, accent, subtitle, loading, delay
 
 export default function ClubHeadDashboard() {
   const { user } = useAuth();
-  const [managedClub, setManagedClub] = useState(null);
+  const [managedClub, setManagedClub] = useState<any>(null);
   const [stats, setStats] = useState({ members: 0, events: 0, health: 92 });
-  const [recentActivities, setRecentActivities] = useState([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [announcementText, setAnnouncementText] = useState('');
   const [isPosting, setIsPosting] = useState(false);
@@ -86,7 +85,7 @@ export default function ClubHeadDashboard() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const { data: memberData } = await supabase
+        const { data: memberData }: any = await supabase
           .from('memberships')
           .select('club_id, clubs(*)')
           .eq('user_id', user.id)
@@ -102,7 +101,7 @@ export default function ClubHeadDashboard() {
         const clubId = memberData.club_id;
         setManagedClub(memberData.clubs);
 
-        const [mCount, eData] = await Promise.all([
+        const [mCount, eData]: any = await Promise.all([
           supabase.from('memberships').select('*', { count: 'exact', head: true }).eq('club_id', clubId),
           supabase.from('events').select('*').eq('club_id', clubId).order('created_at', { ascending: false })
         ]);
@@ -145,7 +144,7 @@ export default function ClubHeadDashboard() {
     if (!announcementText.trim() || !managedClub) return;
     setIsPosting(true);
     try {
-      const { error } = await supabase
+      const { error }: any = await supabase
         .from('feed_posts')
         .insert({ club_id: managedClub.id, content: announcementText });
       if (error) throw error;

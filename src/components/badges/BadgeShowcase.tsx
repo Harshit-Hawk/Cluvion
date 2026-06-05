@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -32,7 +31,7 @@ const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId, stats, compact = 
         ]);
         setBadgeProgress(progress);
         setEarnedBadges(earned);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load badges:', err);
       } finally {
         setLoading(false);

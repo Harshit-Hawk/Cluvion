@@ -110,13 +110,14 @@ export class EngagementService {
       { name: 'Legend', req: 5000 }
     ];
 
-    let currentTier = tiers[0];
-    let nextTier = tiers[1];
+    let currentTier: { name: string; req: number } = { name: 'Novice', req: 0 };
+    let nextTier: { name: string; req: number } = { name: 'Bronze', req: 100 };
 
     for (let i = 0; i < tiers.length; i++) {
-      if (xp >= tiers[i].req) {
-        currentTier = tiers[i];
-        nextTier = tiers[i + 1] || { name: 'Max Level', req: tiers[i].req };
+      const tier = tiers[i]!;
+      if (xp >= tier.req) {
+        currentTier = tier;
+        nextTier = tiers[i + 1] || { name: 'Max Level', req: tier.req };
       } else {
         break;
       }

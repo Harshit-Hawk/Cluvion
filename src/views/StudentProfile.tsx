@@ -14,7 +14,7 @@ import { toast } from 'react-toastify';
 import QRCode from 'react-qr-code';
 
 // Calculate level helper (matching leaderboard)
-const calculateLevel = (xp) => {
+const calculateLevel = (xp: number) => {
    const level = Math.floor(xp / 100) + 1;
    const nextLevelXp = level * 100;
    const xpToNext = nextLevelXp - xp;

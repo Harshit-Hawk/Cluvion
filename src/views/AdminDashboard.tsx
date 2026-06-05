@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -23,7 +22,7 @@ ChartJS.register(
 );
 
 /* ── Compact stat card ── */
-const AdminStatCard = ({ title, value, change, icon: Icon, color, delay }) => (
+const AdminStatCard = ({ title, value, change, icon: Icon, color, delay }: any) => (
   <motion.div
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
@@ -50,7 +49,7 @@ const AdminStatCard = ({ title, value, change, icon: Icon, color, delay }) => (
 );
 
 /* ── Quick action card ── */
-const QuickActionCard = ({ href, icon: Icon, iconColor, title, subtitle, cta, gradient = false }) => {
+const QuickActionCard = ({ href, icon: Icon, iconColor, title, subtitle, cta, gradient = false }: any) => {
   const base = gradient
     ? 'bg-gradient-to-br from-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/20'
     : 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm hover:border-blue-200 dark:hover:border-blue-900/50';
@@ -81,7 +80,7 @@ const AdminDashboard = () => {
           { count: clubsCount },
           { count: eventsCount },
           { count: pendingCount }
-        ] = await Promise.all([
+        ]: any[] = await Promise.all([
           supabase.from('users').select('*', { count: 'exact', head: true }),
           supabase.from('clubs').select('*', { count: 'exact', head: true }),
           supabase.from('events').select('*', { count: 'exact', head: true }),

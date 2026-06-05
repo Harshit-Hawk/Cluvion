@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -14,7 +13,7 @@ import { format } from 'date-fns';
 
 const AdminModeration = () => {
   const [activeTab, setActiveTab] = useState('events'); // 'events' | 'clubs' | 'logs'
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -27,7 +26,7 @@ const AdminModeration = () => {
     setLoading(true);
     try {
       if (activeTab === 'events') {
-        const { data, error } = await supabase
+        const { data, error }: any = await supabase
           .from('events')
           .select('*, clubs(name)')
           .eq('status', statusFilter)
@@ -35,7 +34,7 @@ const AdminModeration = () => {
         if (error) throw error;
         setItems(data || []);
       } else if (activeTab === 'clubs') {
-        const { data, error } = await supabase
+        const { data, error }: any = await supabase
           .from('clubs')
           .select('*')
           .eq('status', statusFilter)
@@ -50,7 +49,7 @@ const AdminModeration = () => {
     }
   };
 
-  const handleAction = async (id, newStatus) => {
+  const handleAction = async (id: any, newStatus: any) => {
     try {
       const table = activeTab === 'events' ? 'events' : 'clubs';
       const { error } = await supabase
@@ -66,7 +65,7 @@ const AdminModeration = () => {
     }
   };
 
-  const filteredItems = items.filter(item => 
+  const filteredItems = items.filter((item: any) => 
     (item.title || item.name)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.clubs?.name || item.description)?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -110,7 +109,7 @@ const AdminModeration = () => {
             type="text"
             placeholder={`Search ${activeTab}...`}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
           />
         </div>
@@ -147,7 +146,7 @@ const AdminModeration = () => {
             exit={{ opacity: 0, y: -20 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            {filteredItems.map((item) => (
+            {filteredItems.map((item: any) => (
               <motion.div
                 key={item.id}
                 layout

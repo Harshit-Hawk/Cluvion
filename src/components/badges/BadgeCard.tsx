@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState } from 'react';
@@ -172,7 +171,7 @@ export const BadgeDetailModal: React.FC<BadgeModalProps> = ({ badge, isUnlocked,
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.85, opacity: 0, y: 30 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
           className={`relative w-full max-w-sm rounded-3xl p-8 shadow-2xl border-2 overflow-hidden ${
             isUnlocked
               ? `bg-gradient-to-br ${rarity.bgGradient} ${rarity.darkBg} ${rarity.borderColor} ${rarity.darkBorder}`

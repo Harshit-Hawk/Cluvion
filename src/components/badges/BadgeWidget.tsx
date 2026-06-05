@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -31,7 +30,7 @@ const BadgeWidget: React.FC<BadgeWidgetProps> = ({ userId, maxDisplay = 4 }) => 
           return new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime();
         });
         setBadges(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
       } finally {
         setLoading(false);

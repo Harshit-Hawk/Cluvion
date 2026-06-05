@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { Activity, Star, Calendar, Image as ImageIcon, Video, Paperclip, Send, X } from 'lucide-react';
@@ -13,10 +12,10 @@ const ClubHeadHome = () => {
   const { user, userProfile } = useAuth();
   const [postContent, setPostContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const fileInputRef = useRef<any>(null);
 
-  const handlePostSubmit = async () => {
+  const handlePostSubmit: any = async () => {
     if (!postContent.trim() || isPosting) return;
 
     setIsPosting(true);
@@ -28,7 +27,7 @@ const ClubHeadHome = () => {
 
       const { error } = await supabase.from('feed_posts').insert({
         content: postContent,
-        user_id: user.id,
+        user_id: user!.id,
         ...mediaData
       });
 
@@ -44,8 +43,8 @@ const ClubHeadHome = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
         toast.error('File size must be less than 10MB');

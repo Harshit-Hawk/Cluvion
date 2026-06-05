@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -9,7 +8,7 @@ import { Calendar, Building2, Star, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Helper to calculate Level and Next Level XP
-const calculateLevel = (xp) => {
+const calculateLevel = (xp: number) => {
    const level = Math.floor(xp / 100) + 1;
    const nextLevelXp = level * 100;
    const xpToNext = nextLevelXp - xp;
@@ -25,7 +24,7 @@ const calculateLevel = (xp) => {
 };
 
 // Hexagon SVG Component
-const HexagonBadge = ({ rank, baseColor, glowColor, textColor = 'text-white', size = 'w-10 h-10' }) => (
+const HexagonBadge = ({ rank, baseColor, glowColor, textColor = 'text-white', size = 'w-10 h-10' }: { rank: string | number; baseColor: string; glowColor: string; textColor?: string; size?: string }) => (
   <div className={`relative ${size} flex items-center justify-center z-10`}>
     <svg viewBox="0 0 24 24" className={`absolute inset-0 w-full h-full ${baseColor} drop-shadow-md`} style={{ filter: `drop-shadow(0 4px 6px ${glowColor})` }}>
       <path d="M12 2.5L21.5 8V16L12 21.5L2.5 16V8L12 2.5Z" fill="currentColor" />
@@ -36,7 +35,7 @@ const HexagonBadge = ({ rank, baseColor, glowColor, textColor = 'text-white', si
 
 const StudentLeaderboard = () => {
    const { user, userProfile } = useAuth();
-   const [leaderboard, setLeaderboard] = useState([]);
+   const [leaderboard, setLeaderboard] = useState<any[]>([]);
    const [loading, setLoading] = useState(true);
    
    // Filters
@@ -92,14 +91,14 @@ const StudentLeaderboard = () => {
       }
       return { 
          rank: leaderboard.length > 21 ? 21 : leaderboard.length + 1, 
-         score: userProfile?.total_score || 0,
+         score: (userProfile as any)?.total_score || 0,
          fullName: userProfile?.full_name || 'You'
       };
    }, [leaderboard, user, userProfile]);
 
    const currentUserLevelInfo = calculateLevel(currentUserRank?.score || 0);
 
-   const getPodiumStyle = (index) => {
+   const getPodiumStyle = (index: number): any => {
       switch(index) {
          case 0: return {
             bg: "bg-orange-50/50 dark:bg-orange-900/10",

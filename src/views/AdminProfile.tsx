@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -25,10 +24,10 @@ const AdminProfile = () => {
       try {
         setLoading(true);
 
-        const { data, error } = await supabase
+        const { data, error }: any = await supabase
           .from('users')
           .select('full_name, email, role, designation')
-          .eq('id', user.id)
+          .eq('id', user!.id)
           .single();
 
         if (error) throw error;
@@ -36,7 +35,7 @@ const AdminProfile = () => {
         if (data) {
           setProfileData(data);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching profile:', error);
         toast.error('Failed to load profile data');
       } finally {
@@ -47,18 +46,18 @@ const AdminProfile = () => {
     if (user) fetchProfile();
   }, [user]);
 
-  const handleUpdateProfile = async (e) => {
+  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       setSaving(true);
       
-      const { error } = await supabase
+      const { error }: any = await supabase
         .from('users')
         .update({ 
           full_name: profileData.full_name,
           designation: profileData.designation
         })
-        .eq('id', user.id);
+        .eq('id', user!.id);
 
       if (error) throw error;
       
@@ -67,7 +66,7 @@ const AdminProfile = () => {
         designation: profileData.designation
       });
       toast.success('Profile updated successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
     } finally {
@@ -149,7 +148,7 @@ const AdminProfile = () => {
                       className="block w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all sm:text-sm"
                       placeholder="e.g. John Doe"
                       value={profileData.full_name}
-                      onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({ ...profileData, full_name: e.target.value })}
                     />
                   </div>
                 </div>
@@ -165,7 +164,7 @@ const AdminProfile = () => {
                       className="block w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all sm:text-sm"
                       placeholder="e.g. Dean of Students"
                       value={profileData.designation || ''}
-                      onChange={(e) => setProfileData({ ...profileData, designation: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData({ ...profileData, designation: e.target.value })}
                     />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">Your official title or position.</p>

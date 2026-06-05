@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -13,7 +12,7 @@ import {
 /* ──────────────────────────────────────────────
    FLOATING PARTICLE
 ────────────────────────────────────────────── */
-function Particle({ x, y, size, duration, delay }) {
+function Particle({ x, y, size, duration, delay }: { x: number; y: number; size: number; duration: number; delay: number }) {
   return (
     <motion.div
       className="absolute rounded-full bg-indigo-500/15 pointer-events-none"
@@ -31,7 +30,7 @@ const PARTICLES = Array.from({ length: 14 }, (_, i) => ({
 /* ──────────────────────────────────────────────
    DARK INPUT FIELD
 ────────────────────────────────────────────── */
-function Field({ label, icon: Icon, type = 'text', value, onChange, placeholder, required, autoComplete }) {
+function Field({ label, icon: Icon, type = 'text', value, onChange, placeholder, required, autoComplete }: { label: string; icon?: React.ElementType; type?: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder?: string; required?: boolean; autoComplete?: string }) {
   const [show, setShow] = useState(false);
   const [focused, setFocused] = useState(false);
   const isPassword = type === 'password';
@@ -83,7 +82,7 @@ const Login = () => {
   const [tab, setTab] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Sign Up
   const [fullName, setFullName] = useState('');
@@ -98,12 +97,12 @@ const Login = () => {
   const router = useRouter();
   const collegeDomain = typeof window !== 'undefined' ? (localStorage.getItem('college_domain') || '') : '';
 
-  const checkDomain = (emailVal) => {
+  const checkDomain = (emailVal: string) => {
     if (!collegeDomain || collegeDomain === 'demo.edu') return true;
     return emailVal.trim().toLowerCase().endsWith('@' + collegeDomain);
   };
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!checkDomain(email)) {
       setError(`Please use your college email (@${collegeDomain})`);
@@ -118,7 +117,7 @@ const Login = () => {
     }
   };
 
-  const handleSignUp = async (e) => {
+  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!checkDomain(signUpEmail)) {
       setError(`Please use your college email (@${collegeDomain})`);
@@ -131,12 +130,12 @@ const Login = () => {
       setSignUpSuccess(true);
       setTimeout(() => router.push('/student'), 2200);
     } catch (err) {
-      setError(err.message || 'Sign-up failed. Please try again.');
+      setError((err as any).message || 'Sign-up failed. Please try again.');
       setIsSubmitting(false);
     }
   };
 
-  const switchTab = (t) => { setTab(t); setError(null); };
+  const switchTab = (t: string) => { setTab(t); setError(null); };
 
   useEffect(() => {
     if (sessionReady && user && role) {

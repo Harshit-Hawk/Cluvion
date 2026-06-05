@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -8,7 +7,7 @@ import { Globe, ArrowRight, Zap, CheckCircle2, Users, Calendar, Award, Sparkles 
 import { useAuth } from '../context/AuthContext';
 
 /* ── Floating particle dot ───────────────────────────────── */
-function Particle({ x, y, size, duration, delay }) {
+function Particle({ x, y, size, duration, delay }: { x: number; y: number; size: number; duration: number; delay: number }) {
   return (
     <motion.div
       className="absolute rounded-full bg-indigo-500/20 pointer-events-none"
@@ -38,7 +37,7 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
 }));
 
 /* ── Floating feature pill ─────────────────────────────── */
-function FloatingPill({ icon: Icon, text, className, delay }) {
+function FloatingPill({ icon: Icon, text, className, delay }: { icon: React.ElementType; text: string; className: string; delay: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8, y: 20 }}
@@ -63,7 +62,7 @@ const Welcome = () => {
   const [focused, setFocused] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const router = useRouter();
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { user, role, sessionReady } = useAuth();
 
@@ -83,13 +82,13 @@ const Welcome = () => {
   const blobX = useSpring(useTransform(mx, [0, 1], ['-6%', '6%']), { stiffness: 50, damping: 20 });
   const blobY = useSpring(useTransform(my, [0, 1], ['-6%', '6%']), { stiffness: 50, damping: 20 });
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     mx.set((e.clientX - left) / width);
     my.set((e.clientY - top) / height);
   };
 
-  const handleProceed = (e) => {
+  const handleProceed = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = domain.trim().toLowerCase();
     const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
@@ -109,7 +108,7 @@ const Welcome = () => {
   };
 
   // Stagger items
-  const stagger = (i) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.6, delay: 0.1 + i * 0.1, ease: [0.22, 1, 0.36, 1] } });
+  const stagger = (i: number) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.6, delay: 0.1 + i * 0.1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } });
 
   return (
     <div

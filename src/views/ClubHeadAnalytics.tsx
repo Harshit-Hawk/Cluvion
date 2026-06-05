@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -81,7 +80,7 @@ const ClubHeadAnalytics = () => {
     const fetchClubInfo = async () => {
       setLoading(true);
       try {
-        const { data: memberData } = await supabase
+        const { data: memberData }: any = await supabase
           .from('memberships')
           .select('club_id, clubs(name)')
           .eq('user_id', user.id)
@@ -236,10 +235,10 @@ const ClubHeadAnalytics = () => {
             {roleDistribution.labels.map((label, index) => (
               <div key={index} className="flex justify-between items-center text-xs font-semibold px-2">
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: roleDistribution.datasets[0].backgroundColor[index] }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: roleDistribution.datasets[0]!.backgroundColor[index] }} />
                   {label}
                 </div>
-                <span className="text-gray-900 dark:text-white font-bold">{roleDistribution.datasets[0].data[index]}%</span>
+                <span className="text-gray-900 dark:text-white font-bold">{roleDistribution.datasets[0]!.data[index]}%</span>
               </div>
             ))}
           </div>

@@ -18,13 +18,14 @@ export class ReputationService {
    * Calculates the reputation tier based on total XP
    */
   static calculateTier(xp: number): { tier: string; nextTierXp: number; progressPercent: number } {
-    let currentTier = REPUTATION_TIERS[0];
-    let nextTier = REPUTATION_TIERS[1];
+    let currentTier: ReputationTier = { name: 'Novice', req: 0 };
+    let nextTier: ReputationTier = { name: 'Bronze', req: 100 };
 
     for (let i = 0; i < REPUTATION_TIERS.length; i++) {
-      if (xp >= REPUTATION_TIERS[i].req) {
-        currentTier = REPUTATION_TIERS[i];
-        nextTier = REPUTATION_TIERS[i + 1] || { name: 'Max Level', req: REPUTATION_TIERS[i].req };
+      const tier = REPUTATION_TIERS[i]!;
+      if (xp >= tier.req) {
+        currentTier = tier;
+        nextTier = REPUTATION_TIERS[i + 1] || { name: 'Max Level', req: tier.req };
       } else {
         break;
       }

@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -12,9 +13,11 @@ declare global {
 }
 
 function getSupabaseClient(): SupabaseClient {
-  // On the server (SSR), createBrowserClient safely returns a dummy client if called
-  // But usually we don't call this file on the server.
+  // On the server during build/prerendering, use a placeholder to avoid errors
   if (typeof window === 'undefined') {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return createClient('https://placeholder.supabase.co', 'placeholder-key');
+    }
     return createBrowserClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: false,

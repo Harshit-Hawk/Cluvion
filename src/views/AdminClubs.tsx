@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +17,7 @@ ChartJS.register(
 
 const AdminClubs = () => {
   const { user } = useAuth();
-  const [clubs, setClubs] = useState([]);
+  const [clubs, setClubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -26,25 +25,25 @@ const AdminClubs = () => {
   // Create Club State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [newClub, setNewClub] = useState({ name: '', description: '', head_email: '', faculty_coordinator_name: '' });
+  const [newClub, setNewClub] = useState<any>({ name: '', description: '', head_email: '', faculty_coordinator_name: '' });
 
   // Profile Modal State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedClub, setSelectedClub] = useState(null);
+  const [selectedClub, setSelectedClub] = useState<any>(null);
 
   const fetchClubs = async () => {
     try {
       setLoading(true);
 
-      const { data: clubsData, error: clubsError } = await supabase
+      const { data: clubsData, error: clubsError }: any = await supabase
         .from('clubs')
         .select('*')
         .order('name');
         
       if (clubsError) throw clubsError;
 
-      const { data: membersData } = await supabase.from('club_members').select('*');
-      const { data: usersData } = await supabase.from('users').select('id, full_name, email');
+      const { data: membersData }: any = await supabase.from('club_members').select('*');
+      const { data: usersData }: any = await supabase.from('users').select('id, full_name, email');
 
       const enrichedClubs = (clubsData || []).map((club: any) => {
         let members_count = 0;
@@ -89,7 +88,7 @@ const AdminClubs = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'clubs' },
-        (payload) => {
+        (payload: any) => {
           fetchClubs(); // Re-fetch fully to re-calculate members and joins
         }
       )
@@ -100,7 +99,7 @@ const AdminClubs = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'club_members' },
-        (payload) => {
+        (payload: any) => {
           fetchClubs(); // Re-fetch to update head and counts
         }
       )
@@ -112,7 +111,7 @@ const AdminClubs = () => {
     };
   }, [user]);
 
-  const handleCreateClub = async (e) => {
+  const handleCreateClub = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newClub.name.trim()) {
       toast.error('Club name is required');
@@ -125,7 +124,7 @@ const AdminClubs = () => {
       // 1. Find the user ID of the head if email is provided
       let headUserId = null;
       if (newClub.head_email) {
-        const { data: headUser, error: headUserError } = await supabase
+        const { data: headUser, error: headUserError }: any = await supabase
           .from('users')
           .select('id, role')
           .eq('email', newClub.head_email.trim())
@@ -141,7 +140,7 @@ const AdminClubs = () => {
       }
 
       // 2. Insert the club
-      const { data: createdClubData, error: createError } = await supabase
+      const { data: createdClubData, error: createError }: any = await supabase
         .from('clubs')
         .insert([{
            name: newClub.name.trim(),
@@ -173,13 +172,13 @@ const AdminClubs = () => {
       fetchClubs(); // Refresh list to get accurate relations
     } catch (error) {
       console.error('Error creating club:', error);
-      toast.error(error.message || 'Failed to create club');
+      toast.error((error as any).message || 'Failed to create club');
     } finally {
       setIsCreating(false);
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: any) => {
     switch(status) {
       case 'active': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50';
       case 'pending': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
@@ -221,14 +220,14 @@ const AdminClubs = () => {
             placeholder="Search clubs..."
             className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex gap-2">
            <select
               className="block w-full md:w-48 pl-3 pr-10 py-2 text-base border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
            >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
@@ -254,7 +253,7 @@ const AdminClubs = () => {
         </div>
       ) : filteredClubs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClubs.map((club, index) => (
+          {filteredClubs.map((club: any, index: number) => (
             <motion.div
               key={club.id}
               initial={{ opacity: 0, y: 20 }}
@@ -354,44 +353,44 @@ const AdminClubs = () => {
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                       placeholder="e.g. Photography Club"
                       value={newClub.name}
-                      onChange={(e) => setNewClub({ ...newClub, name: e.target.value })}
-                      disabled={isCreating}
-                    />
-                  </div>
+                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClub({ ...newClub, name: e.target.value })}
+                       disabled={isCreating}
+                     />
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                    <textarea
-                      rows="3"
-                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
-                      placeholder="Briefly describe the club's purpose..."
-                      value={newClub.description}
-                      onChange={(e) => setNewClub({ ...newClub, description: e.target.value })}
-                      disabled={isCreating}
-                    />
-                  </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                     <textarea
+                        rows={3}
+                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
+                       placeholder="Briefly describe the club's purpose..."
+                       value={newClub.description}
+                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewClub({ ...newClub, description: e.target.value })}
+                       disabled={isCreating}
+                     />
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Faculty Coordinator Name</label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                      placeholder="e.g. Dr. Smith"
-                      value={newClub.faculty_coordinator_name}
-                      onChange={(e) => setNewClub({ ...newClub, faculty_coordinator_name: e.target.value })}
-                      disabled={isCreating}
-                    />
-                  </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Faculty Coordinator Name</label>
+                     <input
+                       type="text"
+                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                       placeholder="e.g. Dr. Smith"
+                       value={newClub.faculty_coordinator_name}
+                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClub({ ...newClub, faculty_coordinator_name: e.target.value })}
+                       disabled={isCreating}
+                     />
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Club Head Email (Optional)</label>
-                    <input
-                      type="email"
-                      className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                      placeholder="head@example.com"
-                      value={newClub.head_email}
-                      onChange={(e) => setNewClub({ ...newClub, head_email: e.target.value })}
-                      disabled={isCreating}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Club Head Email (Optional)</label>
+                     <input
+                       type="email"
+                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                       placeholder="head@example.com"
+                       value={newClub.head_email}
+                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClub({ ...newClub, head_email: e.target.value })}
+                       disabled={isCreating}
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">If provided, this user will be assigned as the club head.</p>
                   </div>
@@ -552,12 +551,12 @@ const AdminClubs = () => {
 
                     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
                       <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                        {[
-                          { title: 'Annual General Meeting', date: 'Feb 15, 2026', attendees: 45, status: 'Completed' },
-                          { title: 'Workshop: Introduction to ' + selectedClub.name, date: 'Jan 22, 2026', attendees: 60, status: 'Completed' },
-                          { title: 'End of Semester Showcase', date: 'Dec 10, 2025', attendees: 120, status: 'Completed' },
-                          { title: 'New Member Orientation', date: 'Sep 05, 2025', attendees: 30, status: 'Completed' }
-                        ].map((event, idx) => (
+                {[
+                  { title: 'Annual General Meeting', date: 'Feb 15, 2026', attendees: 45, status: 'Completed' },
+                  { title: 'Workshop: Introduction to ' + selectedClub.name, date: 'Jan 22, 2026', attendees: 60, status: 'Completed' },
+                  { title: 'End of Semester Showcase', date: 'Dec 10, 2025', attendees: 120, status: 'Completed' },
+                  { title: 'New Member Orientation', date: 'Sep 05, 2025', attendees: 30, status: 'Completed' }
+                ].map((event: any, idx: number) => (
                           <div key={idx} className="p-4 hover:bg-white dark:hover:bg-gray-800 transition-colors flex items-center justify-between">
                             <div className="flex items-start gap-4">
                               <div className="bg-white dark:bg-gray-900 p-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm text-center min-w-[3.5rem]">

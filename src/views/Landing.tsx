@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
@@ -29,7 +28,7 @@ function useTilt(factor = 12) {
   const y = useMotionValue(0);
   const rotX = useSpring(useTransform(y, [-0.5, 0.5], [factor, -factor]), { stiffness: 160, damping: 26 });
   const rotY = useSpring(useTransform(x, [-0.5, 0.5], [-factor, factor]), { stiffness: 160, damping: 26 });
-  const onMove = useCallback((e) => {
+  const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     x.set((e.clientX - r.left) / r.width - 0.5);
     y.set((e.clientY - r.top) / r.height - 0.5);
@@ -41,7 +40,7 @@ function useTilt(factor = 12) {
 /* ──────────────────────────────────────────────────────────
    REVEAL WRAPPER
 ────────────────────────────────────────────────────────── */
-function Reveal({ children, delay = 0, className = '' }) {
+function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
@@ -58,7 +57,7 @@ function Reveal({ children, delay = 0, className = '' }) {
 /* ──────────────────────────────────────────────────────────
    FEATURE CARD
 ────────────────────────────────────────────────────────── */
-function FeatureCard({ icon: Icon, label, title, body, accentClass, index, dark }) {
+function FeatureCard({ icon: Icon, label, title, body, accentClass, index, dark }: { icon: React.ElementType; label: string; title: string; body: string; accentClass: string; index: number; dark: boolean }) {
   const { rotX, rotY, onMove, onLeave } = useTilt();
   const cardBg = dark ? 'bg-[#0e0e12] border-white/5 hover:border-white/10' : 'bg-white border-gray-100 hover:border-indigo-200 shadow-sm';
   const labelColor = dark ? 'text-white/30' : 'text-indigo-400';
@@ -98,7 +97,7 @@ function FeatureCard({ icon: Icon, label, title, body, accentClass, index, dark 
    MARQUEE
 ────────────────────────────────────────────────────────── */
 const TICKER_WORDS = ['Club Synergy', 'Dynamic Timelines', 'Global Leaderboards', 'Badge System', 'QR Attendance', 'Social Engagement', 'XP Engine', 'Role-Based Access', 'Real-time Analytics', 'Participation Streaks'];
-function Marquee({ dark }) {
+function Marquee({ dark }: { dark: boolean }) {
   const items = [...TICKER_WORDS, ...TICKER_WORDS];
   const border = dark ? 'border-white/5' : 'border-gray-200';
   const text = dark ? 'text-white/20' : 'text-gray-400';
@@ -124,7 +123,7 @@ function Marquee({ dark }) {
 /* ──────────────────────────────────────────────────────────
    STEP CARD (How it works)
 ────────────────────────────────────────────────────────── */
-function StepCard({ number, title, body, dark, index }) {
+function StepCard({ number, title, body, dark, index }: { number: string; title: string; body: string; dark: boolean; index: number }) {
   return (
     <Reveal delay={index * 0.12}>
       <div className={`flex gap-6 items-start group`}>
@@ -162,7 +161,7 @@ export default function Landing() {
   const my = useMotionValue(0.5);
   const blobX = useSpring(useTransform(mx, [0, 1], ['-8%', '8%']), { stiffness: 35, damping: 20 });
   const blobY = useSpring(useTransform(my, [0, 1], ['-8%', '8%']), { stiffness: 35, damping: 20 });
-  const handleMouse = (e) => {
+  const handleMouse = (e: React.MouseEvent<HTMLDivElement>) => {
     mx.set(e.clientX / window.innerWidth);
     my.set(e.clientY / window.innerHeight);
   };
